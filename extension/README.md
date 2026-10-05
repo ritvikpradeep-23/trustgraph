@@ -49,6 +49,31 @@ cd extension && python3 -m http.server 5500       # serve the extension folder, 
 adapter recognizes as a message and logs which selector strategy matched.
 Use it to calibrate an adapter after a site changes its HTML.
 
+## Site adapters: status and calibration
+
+| Site | Adapter | Status |
+| --- | --- | --- |
+| WhatsApp Web | `adapters/whatsapp.js` | Hint-based, **not verified** on the live site |
+| Gmail | `adapters/gmail.js` | Hint-based, **not verified** (experimental) |
+| Facebook Messenger (facebook.com/messages) | `adapters/messenger.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |
+| Instagram DMs | `adapters/instagram.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |
+| Any other site | right-click menu | Works anywhere text can be selected |
+
+The `*.synthetic.html` fixtures are hand-written from selector hints. They prove
+the adapter code works on that structure, **not** that the live site still
+looks like that. To calibrate a site:
+
+1. Open a **test chat** (the HTML contains message text).
+2. Right-click a message → **Inspect**. In DevTools, right-click the element
+   for the whole message row → **Copy → Copy outerHTML**. A couple of
+   neighbouring messages (copy their shared parent) is even better.
+3. Save it as `test/fixtures/<site>.html` and add an entry to
+   `test/fixtures/expected.json` with `"origin": "real"` and the text you
+   expect `extractText()` to return.
+4. Run `test/adapter-tests.html`. If a check fails, adjust that adapter's
+   `strategies` (attribute-based selectors first) until it passes, then
+   confirm on the live site with Debug mode on.
+
 ## Layout
 
 ```

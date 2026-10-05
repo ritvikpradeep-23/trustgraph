@@ -6,12 +6,163 @@
       "file": "stub.html",
       "origin": "synthetic",
       "channel": "test",
-      "scripts": ["adapters/stub.js"],
+      "scripts": [
+        "adapters/stub.js"
+      ],
       "count": 3,
       "messages": [
-        { "index": 0, "text": "Hi love, are you coming for dinner on Sunday?", "sender": "Mum" },
-        { "index": 1, "text": "Can you buy two Google Play gift cards? It's urgent.", "sender": "Unknown number" },
-        { "index": 2, "text": "", "sender": "Sam" }
+        {
+          "index": 0,
+          "text": "Hi love, are you coming for dinner on Sunday?",
+          "sender": "Mum"
+        },
+        {
+          "index": 1,
+          "text": "Can you buy two Google Play gift cards? It's urgent.",
+          "sender": "Unknown number"
+        },
+        {
+          "index": 2,
+          "text": "",
+          "sender": "Sam"
+        }
+      ],
+      "matchUrls": [
+        "http://localhost:5500/test/test-chat.html"
+      ],
+      "noMatchUrls": [
+        "https://example.com/"
+      ]
+    },
+    {
+      "name": "WhatsApp Web",
+      "file": "whatsapp.synthetic.html",
+      "origin": "synthetic",
+      "channel": "whatsapp",
+      "scripts": [
+        "adapters/whatsapp.js"
+      ],
+      "count": 3,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Hi Mum, can you buy two gift cards? 🙏",
+          "sender": "+44 7700 900123"
+        },
+        {
+          "index": 1,
+          "text": "Who is this?",
+          "sender": "You"
+        },
+        {
+          "index": 2,
+          "text": "",
+          "sender": null
+        }
+      ],
+      "matchUrls": [
+        "https://web.whatsapp.com/",
+        "https://web.whatsapp.com/send?phone=1"
+      ],
+      "noMatchUrls": [
+        "https://www.whatsapp.com/",
+        "https://faq.whatsapp.com/"
+      ]
+    },
+    {
+      "name": "Gmail",
+      "file": "gmail.synthetic.html",
+      "origin": "synthetic",
+      "channel": "gmail",
+      "scripts": [
+        "adapters/gmail.js"
+      ],
+      "count": 2,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Subject: Your account will be suspended Dear customer, Your account will be suspended within 24 hours. Verify now at the link below.",
+          "sender": "security@paypa1-support.example"
+        },
+        {
+          "index": 1,
+          "text": "Subject: Your account will be suspended That looks fake, don't click it.",
+          "sender": "friend@example.com"
+        }
+      ],
+      "matchUrls": [
+        "https://mail.google.com/mail/u/0/#inbox/FMfcgzQbfLxyz"
+      ],
+      "noMatchUrls": [
+        "https://www.google.com/",
+        "https://calendar.google.com/"
+      ]
+    },
+    {
+      "name": "Facebook Messenger",
+      "file": "messenger.synthetic.html",
+      "origin": "synthetic",
+      "channel": "messenger",
+      "scripts": [
+        "adapters/meta-chat.js",
+        "adapters/messenger.js"
+      ],
+      "count": 3,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Hey, I need a favour. Can you send me the code you just got?",
+          "sender": "Alex Smith"
+        },
+        {
+          "index": 1,
+          "text": "Sure, what code?"
+        },
+        {
+          "index": 2,
+          "text": ""
+        }
+      ],
+      "matchUrls": [
+        "https://www.facebook.com/messages/t/1000123",
+        "https://www.facebook.com/messages",
+        "https://www.facebook.com/messages/?ref=bookmarks"
+      ],
+      "noMatchUrls": [
+        "https://www.facebook.com/",
+        "https://www.facebook.com/messagesfrom",
+        "https://www.facebook.com/marketplace/",
+        "https://www.messenger.com/t/1"
+      ]
+    },
+    {
+      "name": "Instagram DMs",
+      "file": "instagram.synthetic.html",
+      "origin": "synthetic",
+      "channel": "instagram",
+      "scripts": [
+        "adapters/meta-chat.js",
+        "adapters/instagram.js"
+      ],
+      "count": 2,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Congrats! You've been selected as a brand ambassador. Pay the $50 registration fee to claim your reward.",
+          "sender": "brand.collab.team"
+        },
+        {
+          "index": 1,
+          "text": "No thanks"
+        }
+      ],
+      "matchUrls": [
+        "https://www.instagram.com/direct/t/1234/",
+        "https://www.instagram.com/direct/inbox/"
+      ],
+      "noMatchUrls": [
+        "https://www.instagram.com/",
+        "https://www.instagram.com/directory/"
       ]
     }
   ]

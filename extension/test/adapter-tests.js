@@ -89,6 +89,9 @@
     }
 
     check(adapter.findMessage(w.document.body) === null, "findMessage(<body>) returns null");
+
+    for (const url of spec.matchUrls || []) check(adapter.matches(url) === true, `matches ${url}`);
+    for (const url of spec.noMatchUrls || []) check(adapter.matches(url) === false, `does not match ${url}`);
     frame.remove();
   }
 
