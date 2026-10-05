@@ -40,7 +40,8 @@
       "origin": "synthetic",
       "channel": "whatsapp",
       "scripts": [
-        "adapters/whatsapp.js"
+        "adapters/whatsapp/reader.js",
+        "adapters/whatsapp/adapter.js"
       ],
       "count": 3,
       "messages": [

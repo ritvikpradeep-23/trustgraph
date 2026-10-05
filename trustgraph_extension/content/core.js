@@ -273,7 +273,13 @@
     }
     const messages = adapter.listMessages ? safe(() => adapter.listMessages(), []) : [];
     for (const el of messages) el.setAttribute("data-trustgraph-debug", adapter.lastStrategy || "");
-    console.debug(LOG, `debug: ${messages.length} messages via strategy "${adapter.lastStrategy || "none"}"`);
+    // Counts and skip reasons only; message text is never logged.
+    const stats = adapter.read ? safe(() => adapter.read().stats, null) : null;
+    console.debug(
+      LOG,
+      `debug: ${messages.length} messages via strategy "${adapter.lastStrategy || "none"}"` +
+        (stats ? ` | rows ${stats.rows}, containers ${stats.containers}, parsed ${stats.parsed}, skipped ${JSON.stringify(stats.skipped)}` : "")
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -321,6 +327,8 @@
       sourceEnabled: adapter ? sourceEnabled(adapter) : false,
       count: adapter ? safe(() => adapter.selfTest(), 0) : 0,
       strategy: adapter ? adapter.lastStrategy || null : null,
+      // Counts only (never text): rows in the DOM vs containers vs parsed.
+      read: adapter && adapter.read ? safe(() => adapter.read().stats, null) : null,
     });
   });
 

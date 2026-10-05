@@ -90,6 +90,12 @@
 
     check(adapter.findMessage(w.document.body) === null, "findMessage(<body>) returns null");
 
+    if (adapter.read) {
+      const { messages: records, stats } = adapter.read();
+      check(stats.parsed === stats.containers, "read() parses every recognized message", `containers ${stats.containers}, parsed ${stats.parsed}, skipped ${JSON.stringify(stats.skipped)}`);
+      check(records.every((r) => r.id && typeof r.text === "string" && Array.isArray(r.links)), "read() records have id, text and links");
+    }
+
     for (const url of spec.matchUrls || []) check(adapter.matches(url) === true, `matches ${url}`);
     for (const url of spec.noMatchUrls || []) check(adapter.matches(url) === false, `does not match ${url}`);
     frame.remove();

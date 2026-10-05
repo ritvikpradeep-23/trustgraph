@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  Simulates WhatsApp Web's virtualised message list: 60 messages, but only
+  ~16 rows exist in the DOM at a time, re-rendered as you scroll. Used by
+  test/reader-tests.html to check that the chat store accumulates messages,
+  that "Scan earlier" restores the scroll position, and that switching chats
+  resets the store. All content is made up.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual WhatsApp pane</title>
+  <style>
+    body { margin: 0; font: 14px system-ui, sans-serif; }
+    #main { display: flex; flex-direction: column; height: 600px; width: 800px; }
+    header { height: 50px; flex: none; }
+    .xscroll { flex: 1; overflow-y: auto; position: relative; padding: 0 30px; }
+    .xrow { height: 40px; display: flex; align-items: center; }
+    .xrow.out { justify-content: flex-end; }
+    .xb { background: #fff; padding: 4px 8px; border-radius: 6px; max-width: 60%; }
+  </style>
+</head>
+<body>
+  <div id="host"></div>
+  <script>
+    const ROW = 40;
+    const WINDOW = 16;
+    let chat = { title: "Arjun K", prefix: "3EB0V", count: 60 };
+
+    function buildMain() {
+      const main = document.createElement("div");
+      main.id = "main";
+      const header = document.createElement("header");
+      const title = document.createElement("span");
+      title.setAttribute("title", chat.title);
+      title.setAttribute("dir", "auto");
+      title.textContent = chat.title;
+      header.appendChild(title);
+      const scroller = document.createElement("div");
+      scroller.className = "xscroll";
+      scroller.tabIndex = 0;
+      const list = document.createElement("div");
+      list.setAttribute("role", "application");
+      scroller.appendChild(list);
+      main.append(header, scroller);
+      scroller.addEventListener("scroll", () => render(scroller, list));
+      return { main, scroller, list };
+    }
+
+    function row(i) {
+      const out = i % 3 === 0;
+      const r = document.createElement("div");
+      r.setAttribute("role", "row");
+      const c = document.createElement("div");
+      c.setAttribute("data-id", chat.prefix + String(i).padStart(3, "0"));
+      c.className = "xrow" + (out ? " out" : "");
+      const b = document.createElement("div");
+      b.className = "xb copyable-text";
+      const minute = String(i % 60).padStart(2, "0");
+      b.setAttribute("data-pre-plain-text", `[9:${minute} am, 5/10/2026] ${out ? "Me" : chat.title}: `);
+      const s = document.createElement("span");
+      s.className = "selectable-text copyable-text";
+      s.textContent = `Message ${i} in ${chat.title}`;
+      b.appendChild(s);
+      c.appendChild(b);
+      r.appendChild(c);
+      return r;
+    }
+
+    // Only the rows near the viewport exist; spacers keep the height right.
+    function render(scroller, list) {
+      const first = Math.max(0, Math.min(chat.count - WINDOW, Math.floor(scroller.scrollTop / ROW) - 2));
+      const last = Math.min(chat.count, first + WINDOW);
+      list.replaceChildren();
+      const top = document.createElement("div");
+      top.style.height = first * ROW + "px";
+      list.appendChild(top);
+      for (let i = first; i < last; i++) list.appendChild(row(i));
+      const bottom = document.createElement("div");
+      bottom.style.height = (chat.count - last) * ROW + "px";
+      list.appendChild(bottom);
+    }
+
+    function mount() {
+      const { main, scroller, list } = buildMain();
+      document.getElementById("host").replaceChildren(main);
+      render(scroller, list);
+      scroller.scrollTop = scroller.scrollHeight; // chats open at the newest message
+      render(scroller, list);
+    }
+
+    // Opens a different chat: WhatsApp re-renders #main.
+    window.switchChat = function () {
+      chat = { title: "Meera", prefix: "AC76W", count: 30 };
+      mount();
+    };
+
+    mount();
+  </script>
+  <script src="/shared/constants.js"></script>
+  <script src="/adapters/kit.js"></script>
+  <script src="/adapters/whatsapp/reader.js"></script>
+  <script src="/adapters/whatsapp/adapter.js"></script>
+  <script src="/content/chat-store.js"></script>
+</body>
+</html>

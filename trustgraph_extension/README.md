@@ -43,7 +43,16 @@ node trustgraph_extension/test/basic-check.test.js           # offline Basic che
 cd trustgraph_extension && python3 -m http.server 5500       # serve the extension folder, then open:
 #   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
 #   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
+#   http://localhost:5500/test/reader-tests.html   WhatsApp reader: parsing, every message
+#                                                  type, virtualised scrolling, chat switch
 ```
+
+**Checking message reading on the live site:** open a WhatsApp chat, click
+the TrustGraph toolbar icon, and read the grey line under "Recognizing N
+messages": `Rows 36 · message containers 16 · parsed 16`. *parsed* should
+equal *message containers*; anything skipped is listed with the reason.
+With Debug mode on, the same counts are logged to the page console (never
+message text).
 
 **Debug mode** (Settings → Debug) outlines every element the current site's
 adapter recognizes as a message and logs which selector strategy matched.
@@ -53,7 +62,7 @@ Use it to calibrate an adapter after a site changes its HTML.
 
 | Site | Adapter | Status |
 | --- | --- | --- |
-| WhatsApp Web | `adapters/whatsapp.js` | Hint-based, **not verified** on the live site |
+| WhatsApp Web | `adapters/whatsapp/adapter.js` + `reader.js` | Rebuilt from live-site observations (Oct 2026); confirm with the popup counts |
 | Gmail | `adapters/gmail.js` | Hint-based, **not verified** (experimental) |
 | Facebook Messenger (facebook.com/messages) | `adapters/messenger.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |
 | Instagram DMs | `adapters/instagram.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |

@@ -17,12 +17,34 @@
   const TIME_ONLY = /^(\d{1,2}[:.]\d{2}(\s?[ap]\.?m\.?)?|seen|sent|delivered|seen by .+)$/i;
 
   const hasContent = (row) => row.querySelector('[dir="auto"], img');
+  const DATE_ROW = /^(today|yesterday|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}[:./])/i;
+
+  // Innermost dir="auto" blocks that hold message text.
+  function textLeaves(el) {
+    const blocks = Array.from(el.querySelectorAll('[dir="auto"]'));
+    if (el.matches('[dir="auto"]')) blocks.unshift(el);
+    return blocks
+      .filter((b) => !b.querySelector('[dir="auto"]'))
+      .filter((b) => !b.closest(NOT_TEXT) && !b.closest(COMPOSER))
+      .filter((b) => {
+        const t = kit.text(b);
+        return t && !TIME_ONLY.test(t);
+      });
+  }
+
+  function mediaOf(row) {
+    if (row.querySelector("audio, [aria-label*='audio' i], [aria-label*='voice' i]")) return "voice";
+    if (row.querySelector("video")) return "video";
+    const img = Array.from(row.querySelectorAll("img")).find((im) => !kit.isEmojiImg(im));
+    return img ? "image" : null;
+  }
 
   function makeAdapter({ channel, matches }) {
     const main = () => document.querySelector('[role="main"]') || document;
 
     const adapter = {
       channel,
+      push: true,
       strategies: [
         {
           name: "grid-row",
@@ -76,6 +98,68 @@
         const heading = main().querySelector('h1 [dir="auto"], h2 [dir="auto"], h1, h2');
         const name = heading ? kit.clean(heading.textContent) : "";
         return name || null;
+      },
+
+      // --- chat-level reading (content/chat-store.js) --------------------
+      // Rows have no ids, so the id is a hash of the content (stable across
+      // the list re-rendering); repeats within one read get a suffix.
+      read() {
+        const rows = adapter.listMessages();
+        const pane = adapter.messagePane();
+        const partner = adapter.sender();
+        const stats = { rows: rows.length, containers: rows.length, parsed: 0, skipped: {}, byType: {} };
+        const messages = [];
+        const used = {};
+        for (const row of rows) {
+          const leaves = textLeaves(row);
+          const text = kit.cleanLines(Array.from(new Set(leaves.map((b) => kit.text(b, null, { lines: true })))).join("\n"));
+          const mediaType = mediaOf(row);
+          const bubble = leaves[0] || row.querySelector("img, video") || row;
+          let direction = kit.directionOf(bubble, pane);
+          let type = text ? "text" : mediaType ? "media" : "empty";
+          if (direction === "center" && !mediaType && text.length < 60) type = DATE_ROW.test(text) ? "date" : "system";
+          if (type === "empty") {
+            stats.skipped["no text or media"] = (stats.skipped["no text or media"] || 0) + 1;
+            continue;
+          }
+          const base = kit.hashId(type + "|" + text + "|" + (mediaType || ""));
+          used[base] = (used[base] || 0) + 1;
+          stats.parsed++;
+          stats.byType[type] = (stats.byType[type] || 0) + 1;
+          messages.push({
+            id: used[base] > 1 ? base + "-" + used[base] : base,
+            sender: type === "date" || type === "system" ? null : direction === "outgoing" ? "You" : partner,
+            timestamp: null,
+            text: type === "date" ? "" : text,
+            links: kit.links(row),
+            isReply: /\b(replied to|replying to)\b/i.test(row.getAttribute("aria-label") || ""),
+            quotedText: "",
+            hasMedia: !!mediaType,
+            mediaType,
+            isForwarded: /\bforwarded\b/i.test(row.getAttribute("aria-label") || ""),
+            direction: type === "date" || type === "system" ? "center" : direction,
+            type,
+            element: row,
+          });
+        }
+        return { messages, stats, pane };
+      },
+
+      readMessages() {
+        return adapter.read().messages;
+      },
+
+      chatKey() {
+        return location.pathname; // /messages/t/<id> or /direct/t/<id>
+      },
+
+      scroller() {
+        const first = adapter.listMessages()[0];
+        return (first && kit.findScroller(first)) || null;
+      },
+
+      messagePane() {
+        return document.querySelector('[role="grid"]') || main();
       },
 
       listMessages() {

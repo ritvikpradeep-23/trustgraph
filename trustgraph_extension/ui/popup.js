@@ -90,7 +90,9 @@
       showTip(RIGHT_CLICK_TIP);
     } else if (info.count > 0) {
       line.textContent = `Recognizing ${info.count} message${info.count === 1 ? "" : "s"} on this page (${name}).`;
-      showTip("Hover a message and click the shield.");
+      const r = info.read;
+      // e.g. "Rows 36 · containers 16 · parsed 16" so coverage can be checked.
+      showTip(r ? `Rows ${r.rows} · message containers ${r.containers} · parsed ${r.parsed}` + (Object.keys(r.skipped).length ? ` · skipped ${Object.entries(r.skipped).map(([k, v]) => `${v} (${k})`).join(", ")}` : "") : "Hover a message and click the shield.");
     } else {
       line.textContent = `Not recognizing messages here (${name}).`;
       showTip("Open a conversation. If messages are open, the site may have changed: turn on Debug mode in Settings, or use right-click.");

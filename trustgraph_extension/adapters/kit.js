@@ -56,7 +56,11 @@
   // Readable text of `el`, leaving out any descendant matching `exclude`
   // (a CSS selector list such as ".time, .sender"). Walks the live DOM so
   // the page is never modified; adds a space at block boundaries and <br>.
-  function text(el, exclude) {
+  // With {lines: true}, <br> and block boundaries become line breaks instead
+  // (for multi-line chat messages).
+  function text(el, exclude, opts) {
+    const lines = !!(opts && opts.lines);
+    const gap = lines ? "\n" : " ";
     if (!el) return "";
     const parts = [];
     let lastParent = null;
@@ -82,20 +86,97 @@
     let node;
     while ((node = walker.nextNode())) {
       if (node.nodeType === 1) {
-        if (node.tagName === "BR") parts.push(" ");
+        if (node.tagName === "BR") parts.push(gap);
         // Sites often draw emoji as <img alt="😀">; keep the emoji.
-        else if (node.tagName === "IMG") {
-          const alt = node.getAttribute("alt") || "";
-          if (alt && alt.length <= 8) parts.push(alt);
-        }
+        else if (node.tagName === "IMG" && isEmojiImg(node)) parts.push(node.getAttribute("alt"));
         continue;
       }
       const parent = node.parentElement;
-      if (lastParent && parent !== lastParent && (isBlock(parent) || isBlock(lastParent))) parts.push(" ");
+      if (lastParent && parent !== lastParent && (isBlock(parent) || isBlock(lastParent))) parts.push(gap);
       parts.push(node.nodeValue);
       lastParent = parent;
     }
-    return clean(parts.join(""));
+    return lines ? cleanLines(parts.join("")) : clean(parts.join(""));
+  }
+
+  // Like clean(), but keeps single line breaks (drops blank-line runs).
+  function cleanLines(value) {
+    return String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.replace(/[ \t\u00a0\u202f]+/g, " ").trim())
+      .filter((line, i, all) => line || (i > 0 && all[i - 1]))
+      .join("\n")
+      .trim()
+      .slice(0, MAX_TEXT);
+  }
+
+  // Links in `el` (real hrefs, not just visible text). Facebook/Instagram/
+  // Google wrap outbound links in a redirect; unwrap so the real target is
+  // checked. `skip` = an element whose links to ignore (e.g. a quoted reply).
+  function links(el, skip) {
+    const out = [];
+    const seen = new Set();
+    for (const a of el.querySelectorAll("a[href]")) {
+      if (skip && skip.contains(a)) continue;
+      let href = a.href;
+      try {
+        const url = new URL(href);
+        const wrapped =
+          /^(l|lm)\.facebook\.com$|^l\.instagram\.com$/.test(url.hostname) ? url.searchParams.get("u") :
+          url.hostname.endsWith("google.com") && url.pathname === "/url" ? url.searchParams.get("q") || url.searchParams.get("url") : null;
+        if (wrapped) href = wrapped;
+      } catch (_) {
+        continue; // not a usable URL
+      }
+      if (!/^https?:/i.test(href) || seen.has(href)) continue;
+      seen.add(href);
+      out.push({ href, text: clean(a.textContent) });
+      if (out.length >= 20) break;
+    }
+    return out;
+  }
+
+  // Which side of the conversation pane a bubble sits on. Chat apps
+  // right-align your own messages and left-align everyone else's, whatever
+  // their class names or language, so position is the most stable signal.
+  // Returns "outgoing", "incoming", "center" (system notices) or "unknown".
+  function directionOf(bubble, pane) {
+    if (!bubble || !pane) return "unknown";
+    const b = bubble.getBoundingClientRect();
+    const p = pane.getBoundingClientRect();
+    if (!b.width || !p.width) return "unknown";
+    const leftGap = b.left - p.left;
+    const rightGap = p.right - b.right;
+    if (Math.abs(leftGap - rightGap) < p.width * 0.04) return "center";
+    return rightGap < leftGap ? "outgoing" : "incoming";
+  }
+
+  // Nearest scrollable ancestor (the message list's scroller).
+  function findScroller(el) {
+    for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 1) return node;
+    }
+    return null;
+  }
+
+  // Short stable id from a string (FNV-1a), for messages without an id.
+  function hashId(value) {
+    let h = 0x811c9dc5;
+    const str = String(value);
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(36);
+  }
+
+  // An <img> standing in for an emoji: its alt text is emoji characters
+  // (not a word like "Photo").
+  const EMOJI = /^(\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier}|\uFE0F|\u200D|[0-9#*]\uFE0F?\u20E3)+$/u;
+  function isEmojiImg(img) {
+    const alt = (img.getAttribute("alt") || "").trim();
+    return !!alt && alt.length <= 16 && EMOJI.test(alt);
   }
 
   // Collapse whitespace and cap the length.
@@ -108,5 +189,5 @@
     return adapter;
   }
 
-  root.TrustGraphKit = { find, list, text, clean, register };
+  root.TrustGraphKit = { find, list, text, clean, cleanLines, isEmojiImg, links, directionOf, findScroller, hashId, register };
 })(globalThis);

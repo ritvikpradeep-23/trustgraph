@@ -1,0 +1,151 @@
+<!--
+  WhatsApp Web chat pane, ANONYMISED and trimmed, rebuilt from observations
+  of the live site (Oct 2026): hashed class names, data-id without a
+  true_/false_ prefix, [data-pre-plain-text] "[7:36 am, 4/10/2026] Name: ",
+  span.selectable-text bodies, date/system rows without data-id, and a
+  div[tabindex="0"] scroller. Names, numbers and text are made up.
+  Structure details below the stable hooks are approximations.
+-->
+<style>
+  body { margin: 0; font: 14px system-ui, sans-serif; }
+  #app { display: flex; height: 640px; }
+  #side { width: 300px; background: #eee; }
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #main header { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: #f0f2f5; }
+  .x10l6tqk { flex: 1; position: relative; min-height: 0; }
+  .x1n2onr6 { position: absolute; inset: 0; overflow-y: auto; padding: 8px 40px; background: #efeae2; }
+  [role="row"] { display: flex; margin: 4px 0; }
+  .x1c4vz4f { justify-content: center; }
+  .xnz67gz { display: flex; width: 100%; }
+  .x78zum5 { justify-content: flex-end; }
+  .x9f619 { max-width: 65%; background: #fff; border-radius: 8px; padding: 6px 8px; }
+  .x78zum5 .x9f619 { background: #d9fdd3; }
+  .xpill { background: #fff; border-radius: 8px; padding: 4px 10px; font-size: 12px; }
+  .xmeta { font-size: 11px; color: #667; margin-left: 8px; }
+  img.xmedia { display: block; width: 240px; height: 160px; background: #ccc; }
+  footer { height: 60px; background: #f0f2f5; }
+</style>
+<div id="app">
+  <div id="side"></div>
+  <div id="main">
+    <header>
+      <div><span dir="auto" title="Arjun K" class="x1iyjqo2">Arjun K</span></div>
+      <div><button aria-label="Search" class="xq8finb">S</button><button aria-label="Menu" class="xq8finb">M</button></div>
+    </header>
+    <div class="x10l6tqk">
+      <div tabindex="0" class="x1n2onr6">
+        <div role="application" class="x3psx0u">
+
+          <!-- 1. system notice, no data-id -->
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="ltr">Messages and calls are end-to-end encrypted. No one outside of this chat can read or listen to them.</span></div></div>
+
+          <!-- 2. date separator, no data-id -->
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="auto">YESTERDAY</span></div></div>
+
+          <!-- 3. plain incoming text -->
+          <div role="row"><div data-id="3EB0A11F2C9D4E5B6A01" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:36 am, 4/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Hi! Are you coming to the fest tomorrow?</span></span>
+            </div><span class="xmeta">7:36 am</span></div>
+          </div></div>
+
+          <!-- 4. plain outgoing text -->
+          <div role="row"><div data-id="AC76B22E3D1F5A4C7B02" class="xnz67gz x78zum5">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:40 am, 4/10/2026] Ritvik: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Yes, will be there by 10</span></span>
+            </div><span class="xmeta">7:40 am</span><span data-icon="msg-dblcheck"></span></div>
+          </div></div>
+
+          <!-- 5. multi-line -->
+          <div role="row"><div data-id="3EB0A33F4D2E6B5C8C03" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:42 am, 4/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Bring:<br>1. ID card<br>2. Laptop charger</span></span>
+            </div><span class="xmeta">7:42 am</span></div>
+          </div></div>
+
+          <!-- 6. Malayalam text, Malayalam sender name, 24h clock -->
+          <div role="row"><div data-id="3EB0A44A5E3F7C6D9D04" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[19:05, 04/10/2026] അനു: ">
+              <span dir="auto" class="selectable-text copyable-text x1lliihq"><span>നാളെ ക്ലാസ് ഉണ്ടോ?</span></span>
+            </div><span class="xmeta">19:05</span></div>
+          </div></div>
+
+          <!-- 7. link (href differs from the visible text) -->
+          <div role="row"><div data-id="3EB0A55B6F4A8D7E0E05" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:45 PM, 4/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Notes are here <a href="https://github.com/example/notes" class="x1i10hfl">github.com/example/notes</a></span></span>
+            </div><span class="xmeta">7:45 PM</span></div>
+          </div></div>
+
+          <!-- 8. outgoing reply quoting message 3 -->
+          <div role="row"><div data-id="AC76B66C7A5B9E8F1F06" class="xnz67gz x78zum5">
+            <div class="x9f619">
+              <div role="button" aria-label="Quoted message" class="x1y1aw1k"><span dir="auto" class="x1jchvi3">Arjun K</span><span dir="auto" class="quoted-mention x1lliihq">Hi! Are you coming to the fest tomorrow?</span></div>
+              <div class="copyable-text" data-pre-plain-text="[7:50 am, 4/10/2026] Ritvik: ">
+                <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Sure, see you there</span></span>
+              </div><span class="xmeta">7:50 am</span></div>
+          </div></div>
+
+          <!-- 9. date separator -->
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="auto">TODAY</span></div></div>
+
+          <!-- 10. image with caption -->
+          <div role="row"><div data-id="3EB0A77D8B6C0F9A2A07" class="xnz67gz">
+            <div class="x9f619"><img class="xmedia" src="blob:https://web.whatsapp.com/0f6c1b2e-0000-4000-8000-000000000001" alt="">
+              <div class="copyable-text" data-pre-plain-text="[8:01 am, 5/10/2026] Arjun K: ">
+                <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Poster for the event</span></span>
+              </div><span class="xmeta">8:01 am</span></div>
+          </div></div>
+
+          <!-- 11. image without caption (no pre-plain-text) -->
+          <div role="row"><div data-id="3EB0A88E9C7D1A0B3B08" class="xnz67gz">
+            <div class="x9f619"><img class="xmedia" src="blob:https://web.whatsapp.com/0f6c1b2e-0000-4000-8000-000000000002" alt=""><span class="xmeta">8:02 am</span></div>
+          </div></div>
+
+          <!-- 12. voice note -->
+          <div role="row"><div data-id="3EB0A99F0D8E2B1C4C09" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:03 am, 5/10/2026] Arjun K: ">
+              <button aria-label="Play voice message"><span data-icon="audio-play"></span></button><span class="xmeta">0:12</span>
+            </div><span class="xmeta">8:03 am</span></div>
+          </div></div>
+
+          <!-- 13. document -->
+          <div role="row"><div data-id="3EB0AAA01E9F3C2D5D10" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:05 am, 5/10/2026] Arjun K: ">
+              <span data-icon="document-PDF-icon"></span><span dir="auto" title="Timetable.pdf">Timetable.pdf</span>
+            </div><span class="xmeta">8:05 am</span></div>
+          </div></div>
+
+          <!-- 14. deleted -->
+          <div role="row"><div data-id="3EB0ABB12FA04D3E6E11" class="xnz67gz">
+            <div class="x9f619"><span data-icon="recalled"></span><span dir="auto">This message was deleted</span><span class="xmeta">8:06 am</span></div>
+          </div></div>
+
+          <!-- 15. forwarded -->
+          <div role="row"><div data-id="3EB0ACC23AB15E4F7F12" class="xnz67gz">
+            <div class="x9f619"><span data-icon="forward-refreshed"></span><span>Forwarded</span>
+              <div class="copyable-text" data-pre-plain-text="[8:10 am, 5/10/2026] Arjun K: ">
+                <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Share this with everyone!</span></span>
+              </div><span class="xmeta">8:10 am</span></div>
+          </div></div>
+
+          <!-- 16. sender name containing a colon; narrow no-break space before PM -->
+          <div role="row"><div data-id="3EB0ADD34BC26F5A8A13" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[9:15&#8239;PM, 24/10/2026] Dr: Mathew: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Reports are ready</span></span>
+            </div><span class="xmeta">9:15 PM</span></div>
+          </div></div>
+
+          <!-- 17. emoji drawn as images -->
+          <div role="row"><div data-id="AC76BEE45CD37A6B9B14" class="xnz67gz x78zum5">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[9:20 pm, 24/10/2026] Ritvik: ">
+              <span dir="ltr" class="selectable-text copyable-text x1lliihq"><span>Congrats <img alt="🎉" src="data:," width="18" height="18"><img alt="🎉" src="data:," width="18" height="18"></span></span>
+            </div><span class="xmeta">9:20 pm</span></div>
+          </div></div>
+
+        </div>
+      </div>
+    </div>
+    <footer><div contenteditable="true" role="textbox"></div></footer>
+  </div>
+</div>

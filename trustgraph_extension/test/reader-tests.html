@@ -1,22 +1,25 @@
 <!doctype html>
 <!--
-  Runs every site adapter against its saved HTML sample (test/fixtures/).
+  Tests for the WhatsApp reader and the chat store.
   Serve the extension folder:   cd trustgraph_extension && python3 -m http.server 5500
-  then open http://localhost:5500/test/adapter-tests.html
-  Results are listed per fixture; the page title ends with PASS or FAIL.
+  then open http://localhost:5500/test/reader-tests.html
+  The page title ends with PASS or FAIL.
 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrustGraph adapter tests</title>
+  <title>TrustGraph reader tests</title>
   <link rel="stylesheet" href="../shared/tokens.css">
   <link rel="stylesheet" href="test-page.css">
 </head>
 <body>
-  <h1>TrustGraph adapter tests</h1>
+  <h1>TrustGraph reader tests</h1>
   <p id="summary" role="status">Running…</p>
   <div id="results"></div>
-  <script src="adapter-tests.js"></script>
+  <script src="../shared/constants.js"></script>
+  <script src="../adapters/kit.js"></script>
+  <script src="../adapters/whatsapp/reader.js"></script>
+  <script src="reader-tests.js"></script>
 </body>
 </html>
