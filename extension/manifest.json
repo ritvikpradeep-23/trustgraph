@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "TrustGraph",
+  "version": "0.1.0",
+  "description": "Check a message you choose for scam signals. TrustGraph flags and warns; it never hides or deletes anything.",
+  "minimum_chrome_version": "110",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["contextMenus", "activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://mail.google.com/*",
+    "https://www.facebook.com/*",
+    "https://www.instagram.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "optional_host_permissions": ["https://*/*"]
+}

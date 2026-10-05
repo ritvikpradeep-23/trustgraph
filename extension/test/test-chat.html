@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  Fake chat page for testing the shield button without a real chat site.
+  Serve it from this folder:   cd extension/test && python3 -m http.server 5500
+  then open http://localhost:5500/test-chat.html
+  The stub adapter (adapters/stub.js) recognizes each .bubble as a message.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustGraph test chat</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #e9edf5; margin: 0; padding: 24px; color: #1e2761; }
+    main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    h1 { font-size: 18px; }
+    p.note { font-size: 14px; color: #4a5378; }
+    .bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+    .bubble.out { align-self: flex-end; background: #d9fdd3; }
+    .sender { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .time { display: block; font-size: 11px; color: #667; text-align: right; margin-top: 4px; }
+    .image { width: 180px; height: 110px; border-radius: 8px; background: linear-gradient(135deg, #cadcfc, #1e2761); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>TrustGraph test chat</h1>
+    <p class="note">Hover a bubble and click the shield. Select any text and right-click to try "Check with TrustGraph".</p>
+
+    <div class="bubble" data-sender="Mum">
+      <span class="sender">Mum</span>
+      <span class="text">Hi love, are you coming for dinner on Sunday?</span>
+      <span class="time">09:12</span>
+    </div>
+
+    <div class="bubble out">
+      <span class="text">Yes! I'll bring dessert.</span>
+      <span class="time">09:14</span>
+    </div>
+
+    <div class="bubble" data-sender="Unknown number">
+      <span class="sender">+44 7700 900123</span>
+      <span class="text">Hi Mum, it's me, I lost my phone. This is my new number. Can you buy two Google Play gift cards and send me the codes? It's urgent, please don't tell Dad.</span>
+      <span class="time">10:01</span>
+    </div>
+
+    <div class="bubble" data-sender="Parcel Service">
+      <span class="sender">Parcel Service</span>
+      <span class="text">Your parcel is on hold. Pay the customs fee of £1.99 to release your package: http://example.invalid/pay</span>
+      <span class="time">11:30</span>
+    </div>
+
+    <div class="bubble" data-sender="Bank">
+      <span class="sender">Bank</span>
+      <span class="text">Reminder: we will never ask for your password or one-time code by message.</span>
+      <span class="time">12:05</span>
+    </div>
+
+    <div class="bubble" data-sender="Sam">
+      <span class="sender">Sam</span>
+      <div class="image" role="img" aria-label="Photo"></div>
+      <span class="time">12:40</span>
+    </div>
+  </main>
+</body>
+</html>
