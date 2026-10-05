@@ -7,8 +7,9 @@
 //                          from the same sender together
 //   combine(local, server, status)  merge with a TrustGraph server answer
 //
-// result = {band, score, flags, weakSignals, contributions, explanation,
-//           source: "basic", signals}
+// result = {band, score, flags, hits, weakSignals, contributions,
+//           explanation, source: "basic", signals}
+//   hits = every rule that fired (flags = the ones shown as red flags)
 //   flag = {ruleId, title, reason, severity, weight, messageId,
 //           evidence: {start, end, text}}  (evidence = exact original text)
 //
@@ -236,6 +237,9 @@
             evidence: f.evidence,
           }));
     const weakSignals = band === "Low" ? ordered.map((f) => f.title) : ordered.filter((f) => f.kind === "weak").map((f) => f.title);
+    // Every rule that fired, whatever the band (shared/verdict.js maps them
+    // to signal types; a stricter sensitivity can lift a Low score).
+    const hits = ordered.map((f) => ({ ruleId: f.id, kind: f.kind, title: f.title, reason: f.reason, severity: f.kind === "modifier" ? "low" : severity(f.w), weight: round(f.w), messageId: meta.id || null, evidence: f.evidence }));
 
     let explanation;
     if (band === "High") explanation = "Several scam signs together: " + ordered.slice(0, 2).map((f) => f.title.toLowerCase()).join("; ") + ".";
@@ -246,6 +250,7 @@
       band,
       score,
       flags,
+      hits,
       weakSignals,
       contributions,
       explanation,
@@ -289,6 +294,7 @@
               evidence: { ...f.evidence, start: f.evidence.start - offsets[k], end: f.evidence.end - offsets[k] },
             };
           });
+          r.hits = r.flags.slice();
           r.explanation = `Across ${run.length} messages from ${run[0].sender || "this sender"}: ${r.explanation}`;
           r.window = run.length;
           results[run[run.length - 1].id] = r;
