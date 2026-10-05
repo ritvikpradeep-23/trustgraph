@@ -34,7 +34,7 @@ Requests for gift cards, one-time codes or passwords, remote-access apps,
 crypto payments, secrecy, threats of arrest or account closure, and upfront
 fees, plus the full TrustGraph engine's signals when its server is running.
 
-TRUSTGRAPH WARNS, IT NEVER BLOCKS
+TRUSTGRAPH ONLY WARNS
 TrustGraph only flags and explains. It never hides, deletes, or changes
 messages, and it never contacts anyone on your behalf.
 

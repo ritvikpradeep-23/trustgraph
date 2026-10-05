@@ -5,6 +5,7 @@ this lets you test the extension's "server is up" path.
 
     python3 extension/scripts/mock_server.py          # only /api/score
     python3 extension/scripts/mock_server.py --all    # also settings/status/report
+    python3 extension/scripts/mock_server.py --fail   # /api/score returns HTTP 500
 
 By default only POST /api/score exists, like the real server today, so the
 extension's "not available yet" paths (report, settings, heartbeat) get a 404.
@@ -23,6 +24,7 @@ HIGH_WORDS = re.compile(r"gift ?card|otp|verification code|anydesk|teamviewer|bi
 CAUTION_WORDS = re.compile(r"urgent|fee|prize|suspend|password|crypto|won\b", re.I)
 
 ALL_ENDPOINTS = False
+FAIL_SCORE = False
 
 
 def score(text):
@@ -76,6 +78,8 @@ class Handler(BaseHTTPRequestHandler):
         data = self._read_json()
         if data is None:
             return self._send(400, {"detail": "invalid JSON"})
+        if self.path == "/api/score" and FAIL_SCORE:
+            return self._send(500, {"detail": "mock failure"})
         if self.path == "/api/score":
             text = str(data.get("message_text", ""))
             print(f"  score  channel={data.get('channel')!r} chars={len(text)}")
@@ -93,12 +97,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global ALL_ENDPOINTS
+    global ALL_ENDPOINTS, FAIL_SCORE
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--all", action="store_true", help="also serve /api/settings, /api/status, /api/report")
+    parser.add_argument("--fail", action="store_true", help="answer /api/score with HTTP 500 (tests the error path)")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     ALL_ENDPOINTS = args.all
+    FAIL_SCORE = args.fail
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     extras = "score, settings, status, report" if ALL_ENDPOINTS else "score only"
     print(f"Mock TrustGraph server on http://127.0.0.1:{args.port} ({extras}). Ctrl+C to stop.")

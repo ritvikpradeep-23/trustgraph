@@ -74,6 +74,28 @@ looks like that. To calibrate a site:
    `strategies` (attribute-based selectors first) until it passes, then
    confirm on the live site with Debug mode on.
 
+## QA checklist (before a demo or a store upload)
+
+Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add) so
+nothing is left over from development.
+
+| # | Test | Expect | Where to look |
+| --- | --- | --- | --- |
+| 1 | Load unpacked (or unzip `dist/…zip` and load that) | No **Errors** button; onboarding opens | chrome://extensions |
+| 2 | Onboarding → **Check this message** | "likely scam" card, "Basic check (offline)" label | page |
+| 3 | Select text on any site → right-click **Check with TrustGraph** | Card next to the selection | page; service-worker console |
+| 4 | Same, with `mock_server.py` running | "[mock server]" explanation, no offline label | mock server terminal |
+| 5 | `mock_server.py --fail`, check again | "server returned an error … (HTTP 500)" label; popup says **Basic check mode** | page; popup |
+| 6 | Service worker asleep: chrome://serviceworker-internals → TrustGraph → **Stop**, then check again | Still works (worker restarts) | service-worker console |
+| 7 | Each live site with a test chat: hover → shield → click | Card anchored to the message; popup says "Recognizing N messages" | page console (`[TrustGraph]` lines) |
+| 8 | Popup → Pause | Shield disappears; right-click still works | page |
+| 9 | Keyboard only: Tab to the card buttons, Enter on **Why?**, Esc | Visible focus rings; Esc closes and focus returns | page |
+| 10 | OS dark mode and "reduce motion" on | Card, popup, and pages readable; no animation | all |
+| 11 | Settings → Clear local data | Counts back to 0, settings back to defaults | popup |
+
+Automated checks: `node extension/test/basic-check.test.js` and
+`test/adapter-tests.html` (see Tests above).
+
 ## Build the Web Store package
 
 ```bash
