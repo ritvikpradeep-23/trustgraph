@@ -195,11 +195,12 @@
       ],
       "matchUrls": [
         "https://www.linkedin.com/messaging/thread/2-abc/",
-        "https://www.linkedin.com/messaging/"
+        "https://www.linkedin.com/messaging/",
+        "https://www.linkedin.com/feed/"
       ],
       "noMatchUrls": [
-        "https://www.linkedin.com/feed/",
-        "https://www.linkedin.com/messagingx"
+        "https://linkedin.com.evil.example/",
+        "https://www.linkedin.co/messaging/"
       ]
     },
     {

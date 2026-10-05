@@ -15,10 +15,11 @@
 
   const CONFIGS = [
     {
-      // LinkedIn is one single-page app: the script loads on all of
-      // linkedin.com and the adapter only switches on in /messaging.
+      // LinkedIn is one single-page app, and its chat pop-ups (bottom right)
+      // open on every page, not just /messaging, so the adapter is on across
+      // linkedin.com; the scan button only shows while a chat is visible.
       channel: "linkedin",
-      matches: (url) => /^https:\/\/www\.linkedin\.com\/messaging(\/|\?|$)/.test(url),
+      matches: (url) => /^https:\/\/www\.linkedin\.com\//.test(url),
       rows: [
         { name: "event-listitem", selector: "li.msg-s-message-list__event" },
         { name: "data-event-urn", selector: "[data-event-urn]" },
@@ -31,7 +32,7 @@
       id: (row) => attr("data-event-urn")(row),
       // LinkedIn marks other people's messages with --other.
       outgoing: (row) => !!row.querySelector(".msg-s-event-listitem") && !row.querySelector(".msg-s-event-listitem--other"),
-      pane: ".msg-s-message-list, .msg-s-message-list-container",
+      pane: ".msg-s-message-list, .msg-s-message-list-container, .msg-overlay-conversation-bubble",
       header: ".msg-title-bar, .msg-thread__link-to-profile",
       composer: '.msg-form__contenteditable, [contenteditable="true"], [role="textbox"]',
     },
@@ -48,7 +49,7 @@
       sender: ".name .peer-title, .message-title .sender-title, .sender-title",
       inheritSender: true,
       time: ".time[title], .MessageMeta [title]",
-      id: (row) => row.getAttribute("data-mid") || (row.id || "").replace(/^message/, "") || null,
+      id: (row) => row.getAttribute("data-mid") || (row.id || "").replace(/^message-?/, "") || null, // K: data-mid; A: id="message-123"
       outgoing: (row) => row.classList.contains("is-out") || row.classList.contains("own"),
       pane: ".bubbles-inner, .MessageList",
       header: ".chat-info, .ChatInfo, .MiddleHeader",

@@ -91,7 +91,10 @@
           const type = text ? "text" : hasMedia ? "media" : "empty";
           stats.parsed++;
           stats.byType[type] = (stats.byType[type] || 0) + 1;
-          const outgoing = cfg.outgoing ? cfg.outgoing(row) : kit.directionOf(row, pane) === "outgoing";
+          // Only a site's own marker says a message is yours. Channel apps
+          // (Discord, Slack) left-align everyone, so position can't tell;
+          // checking one of your own messages is better than skipping a scam.
+          const outgoing = cfg.outgoing ? !!cfg.outgoing(row) : false;
           messages.push({
             id: (cfg.id && cfg.id(row)) || cfg.channel.slice(0, 2) + ":" + kit.hashId(String(sender) + text.slice(0, 200)),
             sender,
@@ -138,6 +141,11 @@
 
       selfTest() {
         return adapter.listMessages().length;
+      },
+
+      // The scan button shows only while a conversation is on screen.
+      hasChat() {
+        return adapter.listMessages().length > 0;
       },
     };
     return adapter;

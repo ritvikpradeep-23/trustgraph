@@ -18,6 +18,9 @@ const FRIEND = { sender: "Arjun K", senderHistory: 40, inChat: true };
 
 // [category, language, text, meta]
 const SCAMS = [
+  ["giveaway", "en", "Free Nitro for everyone! Claim here: dlscord-gift.xyz/claim", UNKNOWN],
+  ["giveaway", "en", "Steam gift for you, claim it before midnight steamcornmunity.ru/gift", UNKNOWN],
+  ["job", "en", "Hi! We have a remote job for you: earn 3000 daily by liking videos.", UNKNOWN],
   ["otp", "en", "Hi, I sent a code to your number by mistake. Can you please send me the OTP you just got? Urgent.", UNKNOWN],
   ["otp", "manglish", "Hello chetta, ningalude phone il oru OTP vannittundu, athu onnu paranju tharamo? Urgent aanu", UNKNOWN],
   ["otp", "ml", "നിങ്ങളുടെ ഫോണിൽ വന്ന ഒടിപി ഒന്ന് പറയാമോ? അത്യാവശ്യമാണ്", UNKNOWN],
@@ -48,6 +51,10 @@ const SCAMS = [
 ];
 
 const BENIGN = [
+  ["work", "en", "We are hiring for a remote job, apply on our careers page", FRIEND],
+  ["chat", "en", "I watched the giveaway stream yesterday, so fun", FRIEND],
+  ["links", "en", "Slides are at https://docs.google.com/presentation/d/1 and the images load from https://lh3.googleusercontent.com/x", FRIEND],
+  ["links", "en", "Here's the Nitro gift I bought you: https://discord.gift/AbC123 enjoy!", FRIEND],
   ["student", "manglish", "Da, nale lab exam undo? Record ezhuthi theernno?", FRIEND],
   ["student", "ml", "നാളെ കോളേജ് അവധിയാണ്, മഴ കാരണം", FRIEND],
   ["dev", "en", "Bro the OTP flow is broken on staging, can you check the verify-otp API?", FRIEND],

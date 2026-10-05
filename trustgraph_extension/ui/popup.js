@@ -219,6 +219,7 @@
     let line = "TrustGraph can't run on this page.";
     let sub = "Browser pages and the Chrome Web Store can't be checked.";
     let icon = "globe";
+    let sampleTab = null;
     try {
       const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (t && /^https?:/.test(t.url || "")) {
@@ -238,11 +239,50 @@
             line = `${name}: recognising ${info.count} message${info.count === 1 ? "" : "s"}.`;
             const r = info.read;
             sub = r ? `Rows ${r.rows} · message containers ${r.containers} · parsed ${r.parsed}` + (Object.keys(r.skipped || {}).length ? ` · skipped ${Object.entries(r.skipped).map(([k, v]) => `${v} (${k})`).join(", ")}` : "") : "Hover a message and click the shield.";
-          } else [line, sub] = [`${name}: no messages recognised yet.`, "Open a conversation. If one is open, the site may have changed: try Debug mode or right-click."];
+          } else
+            [line, sub] = [
+              `${name}: no messages recognised yet.`,
+              info.fallback
+                ? "Open a conversation. If one is open, the site may have changed its layout: hover a message anyway (the shield falls back to any block of text), and send a page sample from Debug mode so the adapter can be fixed."
+                : "Open a conversation. If one is open, the site may have changed: try Debug mode or right-click.",
+            ];
+          if (info.debug) sampleTab = { id: t.id, name };
         }
       }
     } catch (_) {}
-    return el("section", { class: "sec", "aria-label": "This page" }, [U.eyebrow("This page"), el("div", { class: "tg-card flat page-card", style: "margin-top:8px" }, [el("p", { class: "page-line" }, [U.icon(icon), line]), el("p", { class: "tg-mono", style: "font-size:10.5px", text: sub })])]);
+    const card = el("div", { class: "tg-card flat page-card", style: "margin-top:8px" }, [el("p", { class: "page-line" }, [U.icon(icon), line]), el("p", { class: "tg-mono", style: "font-size:10.5px", text: sub })]);
+    if (sampleTab) card.append(sampleButton(sampleTab));
+    return el("section", { class: "sec", "aria-label": "This page" }, [U.eyebrow("This page"), card]);
+  }
+
+  // Debug mode: save the chat area's structure with all text replaced by
+  // x / 0, to send to whoever maintains the adapters. Nothing is sent
+  // anywhere by TrustGraph; the user saves the file.
+  function sampleButton(t) {
+    const msg = el("p", { class: "msg", role: "status", "aria-live": "polite" });
+    return el("div", { style: "margin-top:8px" }, [
+      U.button("Save anonymised page sample", {
+        small: true,
+        icon: "fileDown",
+        title: "Saves this page's chat structure with every letter replaced by x and every digit by 0",
+        onclick: async () => {
+          try {
+            const s = await chrome.tabs.sendMessage(t.id, { type: TG.MSG.CAPTURE_SAMPLE }, { frameId: 0 });
+            const head = `<!-- TrustGraph page sample (anonymised: letters -> x/X, digits -> 0)\n     site: ${s.host}${s.path}  channel: ${s.channel}  recognised: ${s.count}  strategy: ${s.strategy || "none"}\n     version: ${chrome.runtime.getManifest().version}  saved: ${new Date().toISOString()} -->\n`;
+            const url = URL.createObjectURL(new Blob([head + s.html], { type: "text/html" }));
+            const a = el("a", { href: url, download: `trustgraph-sample-${s.channel}.html` });
+            document.body.append(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            msg.textContent = "Saved. Check the file before you share it.";
+          } catch (_) {
+            msg.textContent = "Couldn't read this page. Reload it and try again.";
+          }
+        },
+      }),
+      msg,
+    ]);
   }
 
   // ---------------------------------------------------------------------------

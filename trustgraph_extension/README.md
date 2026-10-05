@@ -114,6 +114,7 @@ cd trustgraph_extension && python3 -m http.server 5500       # then open:
 #   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
 #   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
 #   http://localhost:5500/test/reader-tests.html   WhatsApp reader
+#   http://localhost:5500/test/fallback-tests.html every platform after a simulated redesign; page-sample anonymiser
 #   http://localhost:5500/dev/gallery.html         component gallery
 python3 trustgraph_extension/scripts/build_zip.py
 ```
@@ -142,6 +143,40 @@ console (never message text).
 | Facebook Messenger, Instagram DMs | `adapters/messenger.js`, `instagram.js` + `meta-chat.js` | Hint-based, **not verified** |
 | Any other https site | `adapters/generic.js`, registered only after Settings → Sites → **Any other site** grants the optional all-sites permission | Single messages (any block of text) |
 | Anywhere | right-click menu, popup "Check current selection" | Works wherever text can be selected |
+
+**If a site changes its HTML**, the precise selectors can stop matching. The
+shield then falls back to any message-sized block of text in the chat area
+(`kit.textBlock()`, used by `content/core.js` for every site adapter), so
+single-message checks keep working while the adapter is fixed; only
+whole-chat scans need the adapter. `test/fallback-tests.html` strips every
+class, id, role and `data-*` attribute from each platform's sample and checks
+each message is still found.
+
+**Checking each platform on the live site (2 minutes each).** Log in, open a
+conversation, then:
+
+1. Click the TrustGraph toolbar icon. "This page" should say
+   `<Site>: recognising N messages` with N > 0.
+2. Hover a message from someone else: the blue shield appears at its corner.
+   Click it: the panel opens with a verdict.
+3. Click the round scan button (right edge): "Read N messages from this chat".
+4. If step 1 says "no messages recognised" or step 3 reads nothing: turn on
+   Settings → Engine and web app → **Debug mode**, reload the page, open the
+   popup and click **Save anonymised page sample**. The file has every letter
+   replaced by `x` and every digit by `0` (structure only, no messages,
+   names or numbers); check it, then send it to whoever maintains the
+   adapters. It becomes a real fixture in `test/fixtures/`.
+
+| Platform | Where it works | Own messages |
+| --- | --- | --- |
+| WhatsApp Web | any chat | marked by WhatsApp, skipped |
+| Gmail | an open email thread (not the inbox list) | your own address, skipped |
+| LinkedIn | /messaging and the chat pop-ups on any LinkedIn page | marked by LinkedIn, skipped |
+| Telegram Web | /k/ and /a/ chats | marked by Telegram, skipped |
+| Discord | channels and DMs | not marked: everything is checked |
+| Slack | channels and DMs in the browser (app.slack.com) | not marked: everything is checked |
+| Messenger, Instagram | facebook.com/messages, instagram.com/direct | by bubble position |
+| Any other site | after allowing "Any other site" in Settings | single checks only |
 
 Adding a chat site is a config entry in `adapters/sites.js` (row, body,
 sender, time and pane selectors; see the comment in `adapters/config.js`),
@@ -225,7 +260,8 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 | 13 | `mock_server.py` (then `--new-shape`, then `--fail`) and check again | "TrustGraph server + on-device rules"; with --fail, "Server error · on-device rules only" |
 | 14 | Settings: Sensitivity Strict, Shield position Top left, Theme Light, Auto-scan | Thresholds and copy change; shield moves; light theme everywhere; auto-scan shows only the rail, opening for High |
 | 15 | Settings → **Notify me on high risk** | Chrome asks for the notifications permission; a High check notifies with the site only |
-| 16 | Keyboard only, OS reduced motion | Visible focus rings (primary blue); Esc closes the panel and focus returns; no animation |
+| 16 | Each platform: the 4 steps in "Checking each platform on the live site" | Recognising N > 0, shield, verdict, chat scan |
+| 17 | Keyboard only, OS reduced motion | Visible focus rings (primary blue); Esc closes the panel and focus returns; no animation |
 
 ## Build the Web Store package
 

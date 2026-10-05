@@ -197,5 +197,75 @@
     return adapter;
   }
 
-  root.TrustGraphKit = { find, list, text, clean, cleanLines, isEmojiImg, links, directionOf, findScroller, hashId, register };
+  // ---------------------------------------------------------------------
+  // Fallback: the smallest block around `target` that reads like a message
+  // (20-3000 characters), inside `scope`, never in navigation, headers,
+  // inputs or TrustGraph's own UI. Used by adapters/generic.js, and by
+  // content/core.js on every supported site when the site's own selectors
+  // find nothing (e.g. after the site changed its HTML), so the shield
+  // keeps working for single-message checks.
+  // ---------------------------------------------------------------------
+  const BLOCK = "p, li, blockquote, td, dd, article, section, [role='article'], [role='listitem'], [role='row'], [dir='auto'], div, span";
+  const NEVER =
+    "input, textarea, select, button, nav, header, footer, aside, [contenteditable='true'], [role='textbox'], [role='navigation'], [role='banner'], [role='menu'], [role='menubar'], [role='toolbar'], [role='tablist'], [role='search'], trustgraph-panel, trustgraph-shield, trustgraph-launcher";
+  function textBlock(target, scope, opts = {}) {
+    const min = opts.min || 20;
+    const max = opts.max || 3000;
+    if (!target || target.nodeType !== 1) target = target && target.parentElement;
+    if (!target || (scope && !scope.contains(target))) return null;
+    for (let el = target.closest(BLOCK); el && el !== document.body && el !== scope; el = el.parentElement && el.parentElement.closest(BLOCK)) {
+      if (el.closest(NEVER)) return null;
+      const len = textLength(el);
+      if (len > max) return null;
+      if (len >= min) return grow(el, scope, max, min);
+    }
+    return null;
+  }
+  const textLength = (el) => (el.innerText || el.textContent || "").trim().length;
+  // Hovering one line of a message should check the whole message: take the
+  // parent while it holds no OTHER message-sized block (only loose text,
+  // line breaks, times, names), so two messages are never merged.
+  function grow(el, scope, max, min) {
+    for (let p = el.parentElement; p && p !== document.body && p !== scope && !p.closest(NEVER); p = el.parentElement) {
+      if (textLength(p) > max) break;
+      if (Array.from(p.children).some((c) => c !== el && textLength(c) >= min)) break;
+      el = p;
+    }
+    return el;
+  }
+
+  // ---------------------------------------------------------------------
+  // Calibration sample: a copy of `el`'s HTML with every letter replaced by
+  // x/X and every digit by 0, attribute values that can hold text (labels,
+  // titles, alt, links, names) anonymised the same way, and scripts, styles,
+  // images and SVG paths removed. Keeps tags, classes, ids, roles and data-*
+  // names, which is what adapter selectors need. Never leaves the page
+  // unless the user saves the file.
+  // ---------------------------------------------------------------------
+  const KEEP_ATTRS = /^(class|id|role|dir|tabindex|aria-hidden|aria-expanded|aria-selected|data-testid|data-qa|data-list-id|data-list-item-id|data-mid|data-event-urn|data-item-key|data-msg-ts|data-ts|data-message-id|data-legacy-message-id|data-thread-perm-id|contenteditable|type|datetime)$/i;
+  const scrub = (s) => String(s).replace(/\p{L}|\p{N}/gu, (c) => (/\p{N}/u.test(c) ? "0" : /\p{Lu}/u.test(c) ? "X" : "x"));
+  function anonymizedHtml(el, limit = 2000000) {
+    const copy = el.cloneNode(true);
+    for (const n of copy.querySelectorAll("script, style, noscript, template, iframe, canvas, video, audio, source")) n.remove();
+    const walker = document.createTreeWalker(copy, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    const nodes = [copy];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      if (node.nodeType === 3) {
+        node.nodeValue = scrub(node.nodeValue);
+        continue;
+      }
+      for (const attr of Array.from(node.attributes || [])) {
+        const name = attr.name.toLowerCase();
+        if (name === "d" || name === "style" || name === "srcset" || name.startsWith("on")) node.removeAttribute(attr.name);
+        else if (name === "src") node.setAttribute(attr.name, "about:blank");
+        else if (name === "href") node.setAttribute(attr.name, "https://example.invalid/" + scrub(attr.value).slice(-24).replace(/[^x0X]/g, ""));
+        else if (!KEEP_ATTRS.test(name) || name === "data-pre-plain-text") node.setAttribute(attr.name, scrub(attr.value));
+      }
+    }
+    const html = copy.outerHTML;
+    return html.length > limit ? html.slice(0, limit) + "\n<!-- truncated -->" : html;
+  }
+
+  root.TrustGraphKit = { find, list, text, clean, cleanLines, isEmojiImg, links, directionOf, findScroller, hashId, register, textBlock, anonymizedHtml, BLOCK_NEVER: NEVER };
 })(globalThis);

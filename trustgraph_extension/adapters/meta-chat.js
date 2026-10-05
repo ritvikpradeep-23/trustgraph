@@ -40,7 +40,7 @@
   }
 
   function makeAdapter({ channel, matches }) {
-    const main = () => document.querySelector('[role="main"]') || document;
+    const main = () => document.querySelector('[role="main"]') || document.body; // an element: the panel measures it
 
     const adapter = {
       channel,

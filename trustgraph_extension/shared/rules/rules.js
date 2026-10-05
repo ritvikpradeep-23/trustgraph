@@ -187,6 +187,9 @@
         P(String.raw`\b(?:lucky draw|lucky winner|jackpot|kbc|kaun banega crorepati|bumper prize|prize money|cash prize)\b`),
         P(String.raw`\bclaim (?:your |the )?(?:prize|reward|gift|winnings|cashback|bonus)\b`),
         P(String.raw`\b(?:you have|you've) received (?:a )?(?:cashback|reward|prize|bonus)\b`),
+        // Discord / Steam / crypto "giveaways" (free Nitro, skins, airdrops)
+        P(String.raw`\bfree (?:discord )?nitro\b|\bnitro (?:giveaway|for free)\b|\b(?:steam|nitro|crypto|nft|token) (?:giveaway|airdrop)\b|\bfree (?:nft|airdrop|robux|skins?|v-?bucks)\b`),
+        P(String.raw`\b(?:giveaway|airdrop|free gift)\b[^.!?\n]{0,60}\bclaim\b|\bclaim (?:it )?(?:here|now|below|before)\b`),
         // Manglish / Hinglish / Hindi / Malayalam
         P(String.raw`\b(?:ningalkk?u|ningalude number(?:inu)?|ninakku)\b[^.!?\n]{0,30}\b(?:prize|sammanam|lottery|cash|reward)\b`),
         P(String.raw`\b(?:aapne|aapka number|apne|aapko)\b[^.!?\n]{0,30}\b(?:jeeta|jeete|jeet liya|inaam|prize|lottery|lakh)\b`),
@@ -210,8 +213,9 @@
       weight: 0.5,
       kind: "rule",
       patterns: [
-        P(String.raw`\b(?:part[- ]?time|work[- ]from[- ]home|wfh|home[- ]based|online)\b (?:job|work|jobs|opportunity|income|earning)s?\b`),
-        P(String.raw`\b(?:earn|earning|salary|income|payout)\b[^.!?\n]{0,15}${MONEY}?\d[\d,]*k?\b[^.!?\n]{0,10}\b(?:per|a|every|each|daily|in a) ?(?:day|daily|hour|hr|task|week)\b`),
+        P(String.raw`\b(?:part[- ]?time|work[- ]from[- ]home|wfh|home[- ]based|online|remote)\b (?:job|work|jobs|opportunity|income|earning)s?\b[^.!?\n]{0,60}\b(?:earn|paid|pay|daily|per day|salary|income|₹|rs)\b|\b(?:part[- ]?time|work[- ]from[- ]home|wfh|home[- ]based)\b (?:job|work|jobs|opportunity|income|earning)s?\b`),
+        P(String.raw`\b(?:earn|earning|salary|income|payout)\b[^.!?\n]{0,15}${MONEY}?\d[\d,]*k?\b[^.!?\n]{0,10}(?:\b(?:per|a|every|each|in a) ?(?:day|hour|hr|task|week)\b|\b(?:daily|hourly|weekly)\b)`),
+        P(String.raw`\b(?:earn|paid|money|income)\b[^.!?\n]{0,40}\bby (?:liking|watching|rating|reviewing|subscribing|following)\b|\b(?:liking|watching|rating) (?:videos?|posts?|reels?|products?)\b[^.!?\n]{0,30}\b(?:earn|paid|pay)\b`),
         P(String.raw`\b(?:like|subscribe|rate|review|follow)\b[^.!?\n]{0,30}\b(?:and|&|to) earn\b`),
         P(String.raw`\b(?:simple|easy|small)\b (?:tasks?|work|job)\b[^.!?\n]{0,40}\b(?:earn|paid|pay|salary|income|commission)\b`),
         P(String.raw`\btelegram\b[^.!?\n]{0,20}\b(?:task|job|group|channel)\b[^.!?\n]{0,30}\b(?:earn|income|pay|join)`),
@@ -399,11 +403,22 @@
     "medium.com", "x.com", "twitter.com", "amazon.in", "amazon.com", "flipkart.com", "sbi.co.in", "onlinesbi.sbi", "hdfcbank.com", "icicibank.com",
     "axisbank.com", "kotak.com", "paytm.com", "phonepe.com", "npci.org.in", "bhimupi.org.in", "irctc.co.in", "kseb.in", "apple.com", "paypal.com",
     "netflix.com", "swiggy.com", "zomato.com", "spotify.com", "canva.com", "drive.google.com", "meet.google.com", "docs.google.com",
+    "discord.com", "discord.gg", "discordapp.com", "discord.new", "steampowered.com", "steamcommunity.com", "telegram.org", "t.me", "slack.com",
+    "gmail.com", "outlook.com", "live.com", "fb.com", "messenger.com", "metamask.io", "binance.com",
+    // the brands' own content and API domains
+    "googleapis.com", "googleusercontent.com", "googleblog.com", "gstatic.com", "googlevideo.com", "microsoftonline.com", "amazonaws.com",
+    "fbcdn.net", "cdninstagram.com", "whatsapp.net", "telegram.me", "slack-edge.com", "slack-files.com", "discordapp.net", "steamstatic.com",
+    "steamusercontent.com", "discord.gift", "licdn.com", "linkedin.cn", "paypal.me", "netflix.net",
   ]);
   // Hosting platforms anyone can publish on: neutral, unless the name
   // impersonates a brand.
   const HOSTING = new Set(["vercel.app", "netlify.app", "github.io", "web.app", "firebaseapp.com", "pages.dev", "blogspot.com", "wixsite.com", "000webhostapp.com", "weebly.com", "glitch.me", "onrender.com", "herokuapp.com"]);
-  const BRAND_TOKENS = ["sbi", "hdfc", "icici", "axis", "kotak", "paytm", "phonepe", "gpay", "googlepay", "npci", "bhim", "upi", "amazon", "flipkart", "indiapost", "incometax", "uidai", "aadhaar", "aadhar", "kseb", "irctc", "epfo", "whatsapp", "paypal", "netflix", "apple", "bank", "kyc", "rbi"];
+  const BRAND_TOKENS = ["sbi", "hdfc", "icici", "axis", "kotak", "paytm", "phonepe", "gpay", "googlepay", "npci", "bhim", "upi", "amazon", "flipkart", "indiapost", "incometax", "uidai", "aadhaar", "aadhar", "kseb", "irctc", "epfo", "whatsapp", "paypal", "netflix", "apple", "bank", "kyc", "rbi",
+    "discord", "steam", "telegram", "slack", "microsoft", "outlook", "google", "gmail", "facebook", "instagram", "linkedin", "metamask", "binance"];
+  // One-letter typos and look-alike swaps of these (dlscord, paypa1,
+  // rnicrosoft) are flagged too; only names of 6+ letters, so ordinary words
+  // ("stream" vs "steam") don't trip it.
+  const TYPO_BRANDS = ["discord", "paypal", "amazon", "netflix", "google", "telegram", "linkedin", "instagram", "facebook", "whatsapp", "microsoft", "outlook", "flipkart", "phonepe", "binance", "metamask"];
   const TWO_LEVEL = /\.(?:co|gov|nic|ac|org|net|edu|res|gen|firm|ind)\.(?:in|uk|au|nz|za)$|\.(?:com|net|org)\.(?:au|br|mx)$/;
 
   function registrable(host) {
@@ -423,6 +438,26 @@
     link_risky_tld: { title: "Link uses an unusual domain ending", reason: "Cheap domain endings like .xyz or .top are common in scam links.", weight: 0.25 },
   };
 
+  // Is any part of the host a near-miss of a brand name? (one edit, or
+  // look-alike swaps: 0/o, 1/l/i, rn/m, vv/w)
+  function editDistance1(a, b) {
+    if (a === b || Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, edits = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++edits > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return edits + (a.length - i) + (b.length - j) <= 1;
+  }
+  function typosquat(host) {
+    const parts = host.split(/[.-]/).filter((p) => p.length >= 5);
+    return parts.some((part) => {
+      const swapped = part.replace(/0/g, "o").replace(/[1!|]/g, "l").replace(/rn/g, "m").replace(/vv/g, "w");
+      return TYPO_BRANDS.some((b) => part !== b && (swapped === b || editDistance1(part, b) || editDistance1(swapped.replace(/l/g, "i"), b.replace(/l/g, "i"))));
+    });
+  }
+
   // Classifies one URL: returns {ruleId | null, safe, host}.
   function classifyUrl(raw) {
     let url;
@@ -440,7 +475,7 @@
     if (SHORTENERS.has(host) || SHORTENERS.has(reg)) issues.push("link_shortener");
     const isSafe = SAFE.has(reg) || SAFE.has(host) || /\.(?:gov|nic|ac)\.in$|\.edu$/.test(host);
     const label = host.replace(/\./g, " ");
-    const brandy = BRAND_TOKENS.some((b) => new RegExp(`(?:^|[^a-z])${b}|${b}(?:[^a-z]|$)`).test(label) || host.includes(b + "-") || host.includes("-" + b));
+    const brandy = BRAND_TOKENS.some((b) => new RegExp(`(?:^|[^a-z])${b}|${b}(?:[^a-z]|$)`).test(label) || host.includes(b + "-") || host.includes("-" + b)) || typosquat(host);
     if (!isSafe && brandy) issues.push("link_lookalike");
     const tld = host.split(".").pop();
     if (!isSafe && RISKY_TLDS.has(tld)) issues.push("link_risky_tld");

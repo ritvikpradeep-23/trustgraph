@@ -110,6 +110,7 @@
     SHOW_RESULT: "showResult",
     // toolbar popup -> content script
     SELF_TEST: "selfTest",
+    CAPTURE_SAMPLE: "captureSample", // Debug mode: anonymised HTML of the chat area, for calibrating an adapter
   };
 
   root.TG = TG;

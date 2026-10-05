@@ -161,16 +161,36 @@
       pendingTarget = null;
       if (!target || !active) return;
       if (target === shieldHost) return; // pointer moved onto the shield itself
-      const message = safe(() => adapter.findMessage(target), null);
+      let message = safe(() => adapter.findMessage(target), null);
+      let via = adapter.lastStrategy || "?";
+      if (!message && adapter.fallback !== false) {
+        // The site's own selectors found nothing (it may have changed its
+        // HTML): fall back to any message-sized block of text in the chat
+        // area, so single checks keep working on every supported site.
+        message = safe(() => TrustGraphKit.textBlock(target, fallbackScope()), null);
+        if (message) {
+          fallbackEls.add(message);
+          via = "fallback-text-block";
+        }
+      }
       if (message) {
         if (settings.debug && message !== currentMessage) {
-          console.debug(LOG, `message found via strategy "${adapter.lastStrategy || "?"}"`, message);
+          console.debug(LOG, `message found via strategy "${via}"`, message);
         }
         showShield(message);
       } else {
         hideShield();
       }
     });
+  }
+
+  // Elements found by the fallback (read with the generic text reader).
+  const fallbackEls = new WeakSet();
+  // The chat area if the adapter knows it, else the whole page (navigation,
+  // headers and inputs are always skipped).
+  function fallbackScope() {
+    const pane = adapter.messagePane ? safe(() => adapter.messagePane(), null) : null;
+    return pane && pane !== document.body && pane !== document.documentElement ? pane : null;
   }
 
   document.addEventListener("mouseover", onPointerOrFocus, true);
@@ -209,7 +229,7 @@
   // The launcher shows while a supported chat page is active and the panel
   // is closed.
   function updateLauncher() {
-    if (active && adapter.read && !Panel.isOpen()) {
+    if (active && adapter.read && !Panel.isOpen() && (!adapter.hasChat || safe(() => adapter.hasChat(), true))) {
       Panel.launcher.show({
         channel: adapter.channel,
         avoid: adapter.chatHeader ? () => safe(() => adapter.chatHeader(), null) : null,
@@ -244,8 +264,10 @@
     event.stopPropagation();
     if (inFlight || !currentMessage || !adapter) return;
     const message = currentMessage;
-    const record = adapter.record ? safe(() => adapter.record(message), null) : null;
-    const text = TrustGraphKit.clean(record ? record.text : safe(() => adapter.extractText(message), ""));
+    const viaFallback = fallbackEls.has(message);
+    const record = !viaFallback && adapter.record ? safe(() => adapter.record(message), null) : null;
+    const extract = () => (viaFallback ? TrustGraphKit.text(message, "time, button, [aria-hidden='true']") : adapter.extractText(message));
+    const text = TrustGraphKit.clean(record ? record.text : safe(extract, ""));
     stopScan(); // a single check replaces any chat scan in the panel
     if (!text) {
       Panel.showSingle({ verdict: { empty: true } }, {}, layoutOpts());
@@ -537,6 +559,9 @@
     // Chat switched without a URL change (WhatsApp): the store resets itself.
     if (scan && safe(() => adapter.chatKey(), null) !== scan.store.chatKey) scan.store.refresh();
     if (!scan && active && settings.scan_mode === "auto" && ticks % 2 === 0) maybeAutoScan();
+    // Chats that open without a URL change (LinkedIn pop-ups): show or hide
+    // the scan button as conversations appear.
+    if (active && adapter.hasChat && ticks % 2 === 0) updateLauncher();
     if (settings.debug && active && ticks % 3 === 0) {
       updateDebug(); // virtual lists add/remove messages as you scroll
     }
@@ -563,6 +588,14 @@
 
   // The toolbar popup asks what this page supports.
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg && msg.type === TG.MSG.CAPTURE_SAMPLE) {
+      // Every letter becomes x and every digit 0 before anything leaves
+      // this function (adapters/kit.js anonymizedHtml).
+      const pane = adapter && adapter.messagePane ? safe(() => adapter.messagePane(), null) : null;
+      const rootEl = pane || document.body;
+      sendResponse({ channel: adapter ? adapter.channel : "unknown", host: location.hostname, path: location.pathname.replace(/[^/]+/g, (seg) => (seg.length > 12 ? "…" : seg)), strategy: adapter ? adapter.lastStrategy || null : null, count: adapter ? safe(() => adapter.selfTest(), 0) : 0, html: TrustGraphKit.anonymizedHtml(rootEl) });
+      return;
+    }
     if (!msg || msg.type !== TG.MSG.SELF_TEST) return;
     sendResponse({
       supported: !!adapter,
@@ -572,6 +605,8 @@
       sourceEnabled: adapter ? sourceEnabled(adapter) : false,
       count: adapter ? safe(() => adapter.selfTest(), 0) : 0,
       strategy: adapter ? adapter.lastStrategy || null : null,
+      fallback: !!adapter && adapter.fallback !== false,
+      debug: !!settings.debug,
       // Counts only (never text): rows in the DOM vs containers vs parsed.
       read: adapter && adapter.read ? safe(() => adapter.read().stats, null) : null,
     });
