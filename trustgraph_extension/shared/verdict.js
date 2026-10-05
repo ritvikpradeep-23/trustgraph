@@ -254,15 +254,25 @@
 
   // A remote answer in either shape -> the engine's {band, score 0..1,
   // explanation, signals}, or null if it isn't one we understand.
+  //
+  // A server may calibrate its own cut-offs (the TrustGraph Python server's
+  // models/risk_bands.json puts Caution at 0.68 and High at 0.91), while the
+  // extension shows every score on one scale: Low 0-34, Caution 35-69, High
+  // 70-100. The server's verdict is kept and its score is placed inside that
+  // verdict's range, so the level and the number never disagree
+  // (e.g. server "Caution, 0.89" shows as Caution 69, not Caution 89).
+  const BAND_RANGE = { Low: [0, 0.34], Caution: [0.35, 0.69], High: [0.7, 1] };
+  const inBand = (band, score) => Math.max(BAND_RANGE[band][0], Math.min(BAND_RANGE[band][1], score));
   function normalizeRemote(data) {
     if (!data || typeof data !== "object") return null;
     if (typeof data.riskLevel === "string" && typeof data.score === "number") {
       const level = data.riskLevel.toLowerCase();
       if (!(level in LEVEL_RANK)) return null;
-      return { band: level[0].toUpperCase() + level.slice(1), score: Math.max(0, Math.min(100, data.score)) / 100, explanation: String(data.explanation || ""), signals: remoteSignals(data.signals) };
+      const band = level[0].toUpperCase() + level.slice(1);
+      return { band, score: inBand(band, Math.max(0, Math.min(100, data.score)) / 100), explanation: String(data.explanation || ""), signals: remoteSignals(data.signals) };
     }
     if (["Low", "Caution", "High"].includes(data.band) && typeof data.explanation === "string" && Array.isArray(data.signals)) {
-      return { band: data.band, score: Math.max(0, Math.min(1, Number(data.score) || 0)), explanation: data.explanation, signals: remoteSignals(data.signals) };
+      return { band: data.band, score: inBand(data.band, Math.max(0, Math.min(1, Number(data.score) || 0))), explanation: data.explanation, signals: remoteSignals(data.signals) };
     }
     return null;
   }

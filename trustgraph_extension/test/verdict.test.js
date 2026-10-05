@@ -46,6 +46,11 @@ const check = (ok, name) => {
   check(d.offline === true && d.riskLevel === "low", "unreachable server falls back to local (offline)");
   const e = await V.RemoteEngine("u", fake({ ok: true, status: 200, data: { band: "Low", score: 0.1, explanation: "ok", signals: [] } })).scoreMessage({ text: "Share the OTP now, urgent, account blocked", channel: "x" });
   check(e.riskLevel !== "low", "local rules still win when they are higher than the server");
+  // A server with its own cut-offs: level and number must still agree.
+  const cal = await V.RemoteEngine("u", fake({ ok: true, status: 200, data: { band: "Caution", score: 0.89, explanation: "x", signals: [] } })).scoreMessage(text);
+  check(cal.riskLevel === "caution" && cal.score >= 35 && cal.score <= 69, `server "Caution 0.89" shows as Caution ${cal.score} (inside 35-69)`);
+  const lowHigh = await V.RemoteEngine("u", fake({ ok: true, status: 200, data: { band: "High", score: 0.4, explanation: "x", signals: [] } })).scoreMessage(text);
+  check(lowHigh.riskLevel === "high" && lowHigh.score >= 70, `server "High 0.40" shows as High ${lowHigh.score}`);
   check(V.normalizeRemote({ riskLevel: "weird", score: 3 }) === null && V.normalizeRemote({ nope: 1 }) === null, "unknown answers are rejected");
 
   // Whole chat: worst message wins, signals pooled, continuity from metadata.
