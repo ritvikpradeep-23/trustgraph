@@ -74,11 +74,29 @@ looks like that. To calibrate a site:
    `strategies` (attribute-based selectors first) until it passes, then
    confirm on the live site with Debug mode on.
 
+## Build the Web Store package
+
+```bash
+pip install pillow                       # only needed to redraw icons
+python3 extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
+python3 extension/scripts/build_zip.py   # -> dist/trustgraph-0.1.0.zip
+```
+
+`build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
+`store/`, `scripts/`, and `adapters/stub.js`. It stops if the manifest
+references a missing file or any script uses `eval`. Store copy, privacy policy,
+permission justifications, and data disclosures are in `store/`.
+
 ## Layout
 
 ```
 background.js        service worker: the only code that calls the backend
+content/             core.js (shield, hover, heartbeat) and popup.js (verdict card)
+adapters/            one file per site + kit.js (shared helpers, adapter contract)
 shared/              constants, Basic check, design tokens
+ui/                  toolbar popup, options, onboarding, privacy pages
+icons/               extension icons
 test/                test chat page, fixtures, tests (not shipped)
+store/               Web Store listing, privacy policy, justifications (not shipped)
 scripts/             mock server, icon + zip builders (not shipped)
 ```
