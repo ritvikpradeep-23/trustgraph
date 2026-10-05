@@ -1,45 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrustGraph</title>
-  <link rel="stylesheet" href="../shared/tokens.css">
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/icons.js"></script>
+  <script src="../shared/design.js"></script>
+  <script src="../shared/ui.js"></script>
   <link rel="stylesheet" href="popup.css">
 </head>
-<body>
-  <header class="top">
-    <svg class="tg-logo logo" viewBox="0 0 24 24" aria-hidden="true">
-      <path class="shield" d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/>
-      <path class="check" d="m8.5 12.2 2.4 2.4 4.8-5" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <h1>TrustGraph</h1>
-    <span id="pill" class="tg-pill" role="status">Checking…</span>
-  </header>
-  <p id="pill-detail" class="detail tg-muted" hidden></p>
-
-  <section class="stats" aria-label="Today's activity">
-    <div class="stat tg-card"><span class="num" id="stat-checked">–</span><span class="label">Checked today</span></div>
-    <div class="stat tg-card"><span class="num" id="stat-flagged">–</span><span class="label">Flagged today</span></div>
-    <div class="stat tg-card"><span class="num" id="stat-saved">–</span><span class="label">Time saved (estimate)</span></div>
-  </section>
-
-  <section class="page tg-card" aria-label="This page">
-    <p id="page-line">Looking at this page…</p>
-    <p id="page-tip" class="tg-muted" hidden></p>
-  </section>
-
-  <div class="row">
-    <label for="pause">Pause TrustGraph</label>
-    <input type="checkbox" id="pause" class="tg-switch" role="switch">
-  </div>
-
-  <footer>
-    <button type="button" id="open-settings" class="tg-btn">Settings</button>
-    <button type="button" id="open-dashboard" class="tg-btn" hidden>Open dashboard</button>
-  </footer>
-
-  <script src="../shared/constants.js"></script>
+<body class="tg-root">
+  <div id="app" class="app"></div>
+  <dialog id="confirm" class="dlg" aria-labelledby="confirm-title" aria-describedby="confirm-text"></dialog>
+  <script src="../shared/verdict.js"></script>
+  <script src="settings-form.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

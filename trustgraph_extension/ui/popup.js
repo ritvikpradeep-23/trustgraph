@@ -1,125 +1,425 @@
-// Toolbar popup: status, today's counts, what this page supports, pause.
+// Toolbar popup (400px). Signed out: the pitch, Sign in / Create account,
+// pairing code, "Use without account". Signed in (or local-only): tabs
+// Overview, History, Settings. Everything here is verdicts and metadata;
+// no message text ever reaches the popup.
 (function () {
   "use strict";
+  const U = TrustGraphUI;
+  const { el } = U;
+  const V = TrustGraphVerdict;
+  const send = (msg) => chrome.runtime.sendMessage(msg);
 
-  const $ = (id) => document.getElementById(id);
-  let backendUrl = TG.DEFAULT_SETTINGS.backend_url;
+  TrustGraphDesign.adopt(document, TrustGraphSettingsForm.CSS);
 
-  function formatMinutes(total) {
-    if (total < 60) return total + " min";
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    return m ? `${h} h ${m} min` : `${h} h`;
+  const app = document.getElementById("app");
+  const dlg = document.getElementById("confirm");
+  let account = { state: "signed_out" };
+  let settings = TG.DEFAULT_SETTINGS;
+  let tab = "overview";
+  try {
+    tab = sessionStorage.getItem("tg-tab") || "overview";
+  } catch (_) {}
+
+  // ---------------------------------------------------------------------------
+  // Shell
+  // ---------------------------------------------------------------------------
+  function statusChip() {
+    if (account.state === "signed_in") return el("span", { class: "tg-status", "data-state": account.online ? "in" : "offline", role: "status", text: account.online ? "Signed in" : "Offline" });
+    if (account.state === "local") return el("span", { class: "tg-status", "data-state": "local", role: "status", text: "Local only" });
+    return el("span", { class: "tg-status", "data-state": "out", role: "status", text: "Signed out" });
   }
 
-  function renderStatus(status) {
-    const pill = $("pill");
-    const detail = $("pill-detail");
-    let state;
-    let label;
-    let text = "";
-
-    if (status.settings.paused) {
-      state = "paused";
-      label = "Paused";
-      text = "The shield is hidden. Right-click checks still work.";
-    } else if (!status.serverUp) {
-      state = "offline";
-      label = "Server not running";
-      text = `No TrustGraph server at ${status.settings.backend_url}. Checks use the Basic check (offline).`;
-    } else if (status.lastScoreSource === "error") {
-      state = "basic";
-      label = "Basic check mode";
-      text = "The server returned an error on the last check, so the Basic check was used.";
-    } else {
-      state = "active";
-      label = "Active";
-    }
-    pill.dataset.state = state;
-    pill.textContent = label;
-    detail.textContent = text;
-    detail.hidden = !text;
-
-    $("stat-checked").textContent = String(status.stats.checkedToday);
-    $("stat-flagged").textContent = String(status.stats.flaggedToday);
-    $("stat-saved").textContent = formatMinutes(status.stats.minutesSavedEstimate);
-    $("stat-saved").title = `${status.stats.checkedToday} checks × ${status.settings.minutes_per_check} min each (your setting). An estimate only.`;
-
-    $("pause").checked = !!status.settings.paused;
-    $("open-dashboard").hidden = !status.serverUp;
-    backendUrl = status.settings.backend_url;
+  function header() {
+    return el("header", { class: "top" }, [
+      U.logo(),
+      el("span", { class: "sp" }),
+      statusChip(),
+      U.iconButton("settings", "Settings", () => (account.state === "signed_out" ? chrome.runtime.openOptionsPage() : select("settings"))),
+    ]);
   }
 
-  async function renderPage() {
-    const line = $("page-line");
-    const tip = $("page-tip");
-    const showTip = (text) => {
-      tip.textContent = text;
-      tip.hidden = !text;
-    };
-    const RIGHT_CLICK_TIP = 'Tip: select any text, right-click, and choose "Check with TrustGraph".';
+  const TABS = [
+    ["overview", "Overview", "gauge"],
+    ["history", "History", "history"],
+    ["settings", "Settings", "settings"],
+  ];
 
-    let tab;
+  function tabs() {
+    const list = el(
+      "div",
+      { class: "tabs", role: "tablist", "aria-label": "TrustGraph" },
+      TABS.map(([id, label, icon]) =>
+        el("button", { class: "tab", role: "tab", id: "tab-" + id, type: "button", "aria-selected": String(tab === id), "aria-controls": "view", tabindex: tab === id ? "0" : "-1", onclick: () => select(id) }, [U.icon(icon), label])
+      )
+    );
+    // Arrow keys move between tabs (WAI-ARIA tabs pattern).
+    list.addEventListener("keydown", (e) => {
+      const i = TABS.findIndex(([id]) => id === tab);
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      select(TABS[(i + step + TABS.length) % TABS.length][0], true);
+    });
+    return list;
+  }
+
+  function select(id, focusTab) {
+    tab = id;
     try {
-      [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      sessionStorage.setItem("tg-tab", id);
     } catch (_) {}
-    if (!tab || !tab.url || !/^https?:/.test(tab.url)) {
-      line.textContent = "TrustGraph can't run on this page.";
-      showTip("Browser pages and the Chrome Web Store can't be checked.");
+    render();
+    if (focusTab) document.getElementById("tab-" + id).focus();
+  }
+
+  function render() {
+    TrustGraphDesign.applyTheme(document, settings.theme);
+    if (account.state === "signed_out") {
+      app.replaceChildren(header(), el("div", { class: "view tg-grid-bg", id: "view" }, signedOut()), footer());
       return;
     }
+    const view = el("div", { class: "view", id: "view", role: "tabpanel", "aria-labelledby": "tab-" + tab, tabindex: "-1" });
+    app.replaceChildren(header(), tabs(), view, footer());
+    if (tab === "overview") renderOverview(view);
+    else if (tab === "history") renderHistory(view);
+    else TrustGraphSettingsForm.mount(view, { compact: true, onAccountChange: load, onDataChange: () => {} });
+  }
 
-    let info = null;
+  function footer() {
+    return el("div", { class: "foot" }, [el("span", { class: "tg-mono", text: "No message text stored · Results only" })]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Signed out
+  // ---------------------------------------------------------------------------
+  function signedOut() {
+    const code = el("input", { class: "tg-input", id: "pair-code", placeholder: "ABCD-1234", autocomplete: "off", spellcheck: "false", "aria-label": "Pairing code from the web app" });
+    const msg = el("p", { class: "msg", role: "status", "aria-live": "polite" });
+    const connect = async () => {
+      msg.classList.remove("error");
+      msg.textContent = "Connecting…";
+      const res = await send({ type: TG.MSG.PAIR, code: code.value });
+      if (res.ok) return load();
+      msg.textContent = res.error;
+      msg.classList.add("error");
+    };
+    code.addEventListener("keydown", (e) => e.key === "Enter" && connect());
+    return [
+      el("div", { class: "hero" }, [
+        el("div", { class: "nodes", "aria-hidden": "true" }, [el("span", { class: "tg-node blue" }), el("span", { class: "tg-node amber" }), el("span", { class: "tg-node green" })]),
+        U.eyebrow("Privacy-first detection", true),
+        el("h1", { class: "tg-h" }, ["Read the signal.", el("br"), el("em", { text: "Keep the trust." })]),
+        el("p", { class: "lead", text: "Check any message in one click. Only the verdict comes home; the message stays where it was." }),
+        el("div", { class: "btn-row" }, [
+          U.button("Sign in", { primary: true, arrow: true, onclick: () => send({ type: TG.MSG.OPEN_AUTH, page: "login" }) }),
+          U.button("Create account", { onclick: () => send({ type: TG.MSG.OPEN_AUTH, page: "register" }) }),
+        ]),
+      ]),
+      el("div", { class: "or" }, [U.eyebrow("Have a pairing code?")]),
+      el("div", { class: "pair" }, [code, U.button("Connect", { onclick: connect })]),
+      msg,
+      el("div", { class: "tg-card local-cta" }, [
+        el("div", { style: "flex:1" }, [el("p", { class: "t", text: "Use without account" }), el("p", { text: "History stays on this device only." })]),
+        U.button("Continue", {
+          small: true,
+          arrow: true,
+          onclick: async () => {
+            await send({ type: TG.MSG.USE_LOCAL });
+            load();
+          },
+        }),
+      ]),
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overview
+  // ---------------------------------------------------------------------------
+  async function renderOverview(view) {
+    view.replaceChildren(U.skeleton("40%", 12), el("div", { class: "tiles", style: "margin-top:10px" }, [U.skeleton("100%", 64), U.skeleton("100%", 64), U.skeleton("100%", 64)]), el("div", { style: "margin-top:14px" }, [U.skeleton("100%", 90)]));
+    let ov;
     try {
-      info = await chrome.tabs.sendMessage(tab.id, { type: TG.MSG.SELF_TEST }, { frameId: 0 });
+      ov = await send({ type: TG.MSG.GET_OVERVIEW });
+      if (!ov || ov.error) throw new Error(ov && ov.error);
     } catch (_) {
-      // No TrustGraph content script on this site (or it hasn't loaded yet).
-    }
-
-    if (!info || !info.supported) {
-      line.textContent = "This site doesn't have the hover shield.";
-      showTip(RIGHT_CLICK_TIP);
+      view.replaceChildren(U.empty({ kind: "error", title: "Couldn't load your overview", text: "Try reopening the popup.", action: U.button("Retry", { small: true, icon: "refresh", onclick: () => renderOverview(view) }) }));
       return;
     }
-    const name = TG.CHANNEL_LABELS[info.channel] || info.channel;
-    if (info.paused) {
-      line.textContent = `${name} is supported. TrustGraph is paused.`;
-      showTip("");
-    } else if (!info.sourceEnabled) {
-      line.textContent = `${name} is turned off in Settings.`;
-      showTip(RIGHT_CLICK_TIP);
-    } else if (info.count > 0) {
-      line.textContent = `Recognizing ${info.count} message${info.count === 1 ? "" : "s"} on this page (${name}).`;
-      const r = info.read;
-      // e.g. "Rows 36 · containers 16 · parsed 16" so coverage can be checked.
-      showTip(r ? `Rows ${r.rows} · message containers ${r.containers} · parsed ${r.parsed}` + (Object.keys(r.skipped).length ? ` · skipped ${Object.entries(r.skipped).map(([k, v]) => `${v} (${k})`).join(", ")}` : "") : "Hover a message and click the shield.");
-    } else {
-      line.textContent = `Not recognizing messages here (${name}).`;
-      showTip("Open a conversation. If messages are open, the site may have changed: turn on Debug mode in Settings, or use right-click.");
-    }
+    if (tab !== "overview") return;
+    const children = [];
+    if (ov.demo) children.push(demoBanner());
+
+    children.push(
+      el("section", { class: "sec", "aria-label": "Today" }, [
+        el("div", { class: "sec-head" }, [U.eyebrow("Today"), el("span", { class: "tg-mono", text: `${ov.today.total} checked` })]),
+        el("div", { class: "tiles" }, [U.statTile("Low", ov.today.low, "low"), U.statTile("Caution", ov.today.caution, "caution"), U.statTile("High", ov.today.high, "high")]),
+      ])
+    );
+
+    const values = ov.days.map((d) => d.avgScore);
+    const hasData = values.some((v) => v !== null);
+    const dayLetter = (d) => new Date(d.date + "T12:00").toLocaleDateString([], { weekday: "narrow" });
+    children.push(
+      el("section", { class: "sec", "aria-label": "Risk over time" }, [
+        el("div", { class: "sec-head" }, [U.eyebrow("Risk over time · 7 days"), el("span", { class: "tg-mono", text: "avg score" })]),
+        el("div", { class: "tg-card spark-card" }, hasData
+          ? [U.sparkline(values, { max: 100, height: 52, label: "Average risk score per day, last 7 days: " + ov.days.map((d) => `${d.date} ${d.avgScore === null ? "no checks" : d.avgScore}`).join(", ") }), el("div", { class: "spark-days", "aria-hidden": "true" }, ov.days.map((d) => el("span", { class: "tg-mono", text: dayLetter(d) })))]
+          : [el("p", { class: "tg-dim", style: "margin:6px 0 8px;font-size:12.5px", text: "Your risk trend appears after your first checks." })]),
+      ])
+    );
+
+    children.push(
+      el("section", { class: "sec", "aria-label": "Risk telemetry across your channels" }, [
+        el("div", { class: "sec-head" }, [U.eyebrow("Risk telemetry across your channels")]),
+        el("div", { class: "tg-card bars-card" }, ov.channels.length ? [U.barList(ov.channels)] : [el("p", { class: "tg-dim", style: "margin:0;font-size:12.5px", text: "No checks in the last 7 days." })]),
+      ])
+    );
+
+    const selMsg = el("p", { class: "msg", role: "status", "aria-live": "polite" });
+    children.push(
+      el("section", { class: "sec" }, [
+        U.button("Check current selection", {
+          primary: true,
+          block: true,
+          icon: "scan",
+          onclick: async () => {
+            selMsg.classList.remove("error");
+            selMsg.textContent = "Checking…";
+            const res = await send({ type: TG.MSG.CHECK_SELECTION });
+            if (res && res.ok) return window.close(); // the panel opens on the page
+            selMsg.textContent = (res && res.error) || "Couldn't check the selection.";
+            selMsg.classList.add("error");
+          },
+        }),
+        selMsg,
+      ]),
+      await pageCard()
+    );
+    view.replaceChildren(...children);
   }
 
-  async function refresh() {
+  function demoBanner() {
+    return el("div", { class: "demo-banner", role: "note" }, [
+      U.icon("sparkles"),
+      el("span", { text: "Showing demo data" }),
+      el("button", {
+        class: "tg-link",
+        type: "button",
+        text: "Turn off",
+        onclick: async () => {
+          settings = await send({ type: TG.MSG.SET_SETTINGS, patch: { demo_data: false } });
+          render();
+        },
+      }),
+    ]);
+  }
+
+  // What this tab supports, from the content script's self-test.
+  async function pageCard() {
+    let line = "TrustGraph can't run on this page.";
+    let sub = "Browser pages and the Chrome Web Store can't be checked.";
+    let icon = "globe";
     try {
-      const status = await chrome.runtime.sendMessage({ type: TG.MSG.GET_STATUS });
-      if (status && !status.error) renderStatus(status);
-    } catch (err) {
-      $("pill").textContent = "Error";
-      console.error("[TrustGraph]", err);
-    }
-    renderPage();
+      const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (t && /^https?:/.test(t.url || "")) {
+        let info = null;
+        try {
+          info = await chrome.tabs.sendMessage(t.id, { type: TG.MSG.SELF_TEST }, { frameId: 0 });
+        } catch (_) {}
+        if (!info || !info.supported) {
+          line = "No shield on this site.";
+          sub = 'Select text and right-click "Check with TrustGraph", or use the button above.';
+        } else {
+          const name = TG.CHANNEL_LABELS[info.channel] || info.channel;
+          icon = "activity";
+          if (info.paused) [line, sub] = [`${name}: TrustGraph is paused.`, "Turn it back on in Settings."];
+          else if (!info.sourceEnabled) [line, sub] = [`${name} is switched off.`, "Turn it on in Settings → Sites."];
+          else if (info.count > 0) {
+            line = `${name}: recognising ${info.count} message${info.count === 1 ? "" : "s"}.`;
+            const r = info.read;
+            sub = r ? `Rows ${r.rows} · message containers ${r.containers} · parsed ${r.parsed}` + (Object.keys(r.skipped || {}).length ? ` · skipped ${Object.entries(r.skipped).map(([k, v]) => `${v} (${k})`).join(", ")}` : "") : "Hover a message and click the shield.";
+          } else [line, sub] = [`${name}: no messages recognised yet.`, "Open a conversation. If one is open, the site may have changed: try Debug mode or right-click."];
+        }
+      }
+    } catch (_) {}
+    return el("section", { class: "sec", "aria-label": "This page" }, [U.eyebrow("This page"), el("div", { class: "tg-card flat page-card", style: "margin-top:8px" }, [el("p", { class: "page-line" }, [U.icon(icon), line]), el("p", { class: "tg-mono", style: "font-size:10.5px", text: sub })])]);
   }
 
-  $("pause").addEventListener("change", async (event) => {
-    await chrome.runtime.sendMessage({ type: TG.MSG.SET_SETTINGS, patch: { paused: event.target.checked } });
-    refresh();
+  // ---------------------------------------------------------------------------
+  // History
+  // ---------------------------------------------------------------------------
+  const filters = { q: "", level: "all", channel: "all", range: "all" };
+  let openId = null;
+
+  function matches(r) {
+    if (filters.level !== "all" && r.riskLevel !== filters.level) return false;
+    if (filters.channel !== "all" && r.channel !== filters.channel) return false;
+    if (filters.range !== "all" && r.timestamp < Date.now() - Number(filters.range) * 86400000) return false;
+    const q = filters.q.trim().toLowerCase();
+    if (q) {
+      // Metadata only: verdict, channel, domain, signal names, id.
+      const hay = [U.LEVELS[r.riskLevel].label, TG.CHANNEL_LABELS[r.channel] || r.channel, r.domain, r.id, ...r.signalIds.map((s) => (V.SIGNAL_TYPES[s] || {}).name || s)].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }
+
+  async function renderHistory(view) {
+    view.replaceChildren(U.skeleton("100%", 38), el("div", { style: "display:grid;gap:6px;margin-top:14px" }, [1, 2, 3, 4].map(() => U.skeleton("100%", 54))));
+    let data;
+    try {
+      data = await send({ type: TG.MSG.GET_HISTORY });
+      if (!data || data.error) throw new Error(data && data.error);
+    } catch (_) {
+      view.replaceChildren(U.empty({ kind: "error", title: "Couldn't load history", text: "Try reopening the popup.", action: U.button("Retry", { small: true, icon: "refresh", onclick: () => renderHistory(view) }) }));
+      return;
+    }
+    if (tab !== "history") return;
+    const all = data.results;
+    const wrong = new Set(data.wrong || []);
+    if (!all.length) {
+      view.replaceChildren(
+        U.empty({
+          title: "No results yet",
+          text: "Hover a message and click the shield, or select text and right-click “Check with TrustGraph”. Only verdicts are kept here.",
+          action: U.button("Load demo data", {
+            small: true,
+            icon: "sparkles",
+            onclick: async () => {
+              settings = await send({ type: TG.MSG.SET_SETTINGS, patch: { demo_data: true } });
+              renderHistory(view);
+            },
+          }),
+        })
+      );
+      return;
+    }
+
+    const channels = [...new Set(all.map((r) => r.channel))];
+    const search = el("input", { class: "tg-input", type: "search", placeholder: "Search verdict, channel, signal or domain", "aria-label": "Search history", value: filters.q });
+    const sel = (key, label, options) =>
+      el("select", { class: "tg-input", "aria-label": label, onchange: (e) => ((filters[key] = e.target.value), drawList()) }, options.map(([v, l]) => el("option", { value: v, text: l, selected: filters[key] === v })));
+    const listBox = el("div");
+    search.addEventListener("input", () => {
+      filters.q = search.value;
+      drawList();
+    });
+
+    function drawList() {
+      const shown = all.filter(matches);
+      const ul = el("ul", { class: "list", "aria-label": "Results" }, shown.map((r) => item(r, wrong, view)));
+      listBox.replaceChildren(
+        el("p", { class: "count tg-eyebrow", role: "status", text: shown.length === all.length ? `${all.length} result${all.length === 1 ? "" : "s"}` : `${shown.length} of ${all.length} results` }),
+        shown.length ? ul : U.empty({ icon: "filter", title: "Nothing matches", text: "Try a different search or filter." })
+      );
+    }
+
+    view.replaceChildren(
+      data.results.some((r) => r.id.startsWith("demo-")) ? demoBanner() : "",
+      el("div", { class: "hist-tools" }, [
+        el("div", { class: "search" }, [U.icon("search"), search]),
+        el("div", { class: "filters" }, [
+          sel("level", "Filter by verdict", [["all", "All verdicts"], ["high", "High risk"], ["caution", "Caution"], ["low", "Low risk"]]),
+          sel("channel", "Filter by channel", [["all", "All channels"], ...channels.map((c) => [c, TG.CHANNEL_LABELS[c] || c])]),
+          sel("range", "Filter by date", [["all", "Any time"], ["1", "Today"], ["7", "7 days"], ["30", "30 days"]]),
+        ]),
+      ]),
+      listBox,
+      el("div", { class: "hist-foot" }, [
+        U.button("JSON", { small: true, icon: "fileDown", ariaLabel: "Export history as JSON", onclick: () => exportAs("json") }),
+        U.button("CSV", { small: true, icon: "download", ariaLabel: "Export history as CSV", onclick: () => exportAs("csv") }),
+        el("span", { class: "sp" }),
+        U.button("Delete all history", {
+          small: true,
+          danger: true,
+          icon: "trash",
+          onclick: () =>
+            confirmDialog("Delete all history?", "This removes every saved verdict and today's counts from this device" + (account.state === "signed_in" ? " and from your workspace" : "") + ". It can't be undone.", "Delete all", async () => {
+              await send({ type: TG.MSG.DELETE_ALL });
+              renderHistory(view);
+            }),
+        }),
+      ])
+    );
+    drawList();
+  }
+
+  function item(r, wrong, view) {
+    const open = openId === r.id;
+    const top = r.signalIds[0] ? (V.SIGNAL_TYPES[r.signalIds[0]] || {}).name || r.signalIds[0] : "No scam signals";
+    const detailId = "d-" + r.id;
+    const li = el("li", { class: "item", "data-open": String(open), "data-level": r.riskLevel }, [
+      el("button", { class: "item-btn", type: "button", "aria-expanded": String(open), "aria-controls": detailId, onclick: () => ((openId = open ? null : r.id), renderHistory(view)) }, [
+        U.chip(r.riskLevel, { small: true, short: true }),
+        el("div", { class: "item-main" }, [
+          el("p", { class: "item-top", text: top + (r.signalIds.length > 1 ? ` +${r.signalIds.length - 1}` : "") }),
+          el("p", { class: "item-meta", text: `${TG.CHANNEL_LABELS[r.channel] || r.channel} · ${U.timeAgo(r.timestamp)}` }),
+        ]),
+        el("span", { class: "score", "aria-label": `score ${r.score}`, text: String(r.score) }),
+      ]),
+    ]);
+    if (open) {
+      li.append(
+        el("div", { class: "item-detail", id: detailId }, [
+          r.signalIds.length
+            ? el("ul", { class: "tg-signals" }, r.signalIds.map((id) => U.signalRow({ ...(V.SIGNAL_TYPES[id] || { name: id, icon: "activity" }), description: null, severity: r.riskLevel === "high" ? "high" : r.riskLevel === "caution" ? "medium" : "low" })))
+            : el("p", { class: "tg-dim", style: "margin:0;font-size:12.5px", text: "No scam signals were found." }),
+          el("p", { class: "id-line", text: `${r.domain || "unknown site"} · ${new Date(r.timestamp).toLocaleString()} · ${r.id}` }),
+          wrong.has(r.id) ? el("p", { class: "wrong-tag", text: "Marked as wrong verdict" }) : null,
+          el("div", { class: "item-actions" }, [
+            U.button("Open in workspace", { small: true, icon: "externalLink", onclick: () => send({ type: TG.MSG.OPEN_WORKSPACE, id: r.id }) }),
+            wrong.has(r.id) ? null : U.button("Mark as wrong", { small: true, icon: "flag", onclick: async () => (await send({ type: TG.MSG.MARK_WRONG, id: r.id }), renderHistory(view)) }),
+            U.button("Delete", { small: true, ghost: true, icon: "trash", onclick: async () => (await send({ type: TG.MSG.DELETE_RESULT, id: r.id }), (openId = null), renderHistory(view)) }),
+          ]),
+        ])
+      );
+    }
+    return li;
+  }
+
+  async function exportAs(format) {
+    const file = await send({ type: TG.MSG.EXPORT, format });
+    const url = URL.createObjectURL(new Blob([file.data], { type: file.mime }));
+    const a = el("a", { href: url, download: file.filename });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function confirmDialog(title, text, okLabel, onOk) {
+    const cancel = U.button("Cancel", { onclick: () => dlg.close() });
+    dlg.replaceChildren(
+      el("h2", { class: "tg-h", id: "confirm-title", text: title }),
+      el("p", { id: "confirm-text", text }),
+      el("div", { class: "acts" }, [
+        cancel,
+        U.button(okLabel, {
+          danger: true,
+          onclick: async () => {
+            dlg.close();
+            await onOk();
+          },
+        }),
+      ])
+    );
+    dlg.showModal();
+    cancel.focus(); // the safe choice has focus
+  }
+
+  // ---------------------------------------------------------------------------
+  async function load() {
+    try {
+      [settings, account] = await Promise.all([send({ type: TG.MSG.GET_SETTINGS }), send({ type: TG.MSG.GET_ACCOUNT })]);
+    } catch (_) {}
+    render();
+  }
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes.account) load();
+    else if (changes.settings && tab !== "settings") send({ type: TG.MSG.GET_SETTINGS }).then((s) => ((settings = s), TrustGraphDesign.applyTheme(document, s.theme)));
   });
 
-  $("open-settings").addEventListener("click", () => chrome.runtime.openOptionsPage());
-
-  $("open-dashboard").addEventListener("click", () => {
-    chrome.tabs.create({ url: backendUrl.replace(/\/+$/, "") + TG.ENDPOINTS.dashboard });
-  });
-
-  refresh();
+  load();
 })();
