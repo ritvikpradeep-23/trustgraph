@@ -20,6 +20,7 @@
   const RULES = [
     {
       id: "gift_card",
+      reason: "Scammers ask for gift cards because the money can't be traced or refunded.",
       label: "Asks you to pay with gift cards",
       patterns: [
         /\b(buy|purchase|get|grab|pick up|send|pay (with|in|using))\b[^.!?\n]{0,40}\bgift ?cards?\b/i,
@@ -30,6 +31,7 @@
     },
     {
       id: "one_time_code",
+      reason: "Banks and apps never ask you to share a one-time code or password. Whoever has it can get into your account.",
       label: "Asks for a one-time code or password",
       patterns: [
         /\b(send|share|give|tell|forward|read|provide|confirm|text|reply with)\b( me| us| it)?( back)?( the| your| that| this)?( \d[- ]digit)? (otp|one[- ]time (pass)?code|verification code|security code|login code|code|password|passcode|pin)\b/i,
@@ -39,6 +41,7 @@
     },
     {
       id: "remote_access",
+      reason: "Remote-access apps let a stranger control your phone or computer, including your banking apps.",
       label: "Asks you to install remote-access software",
       patterns: [
         /\b(any ?desk|team ?viewer|rust ?desk|ultra ?viewer|quick ?support|airdroid|splashtop|logmein)\b/i,
@@ -48,6 +51,7 @@
     },
     {
       id: "crypto",
+      reason: "Crypto payments and 'guaranteed returns' are common in investment scams; the money can't be recovered.",
       label: "Asks for crypto payments or promises guaranteed returns",
       patterns: [
         // (?:[^.!?\n]|\.\d) = stay in the sentence, but allow "0.1 BTC"
@@ -60,6 +64,7 @@
     },
     {
       id: "secrecy",
+      reason: "Being told to keep something secret is a classic way to stop you checking with someone you trust.",
       label: "Asks you to keep it secret",
       patterns: [
         /\b(don'?t|do not|never) (tell|inform|mention (this|it) to)\b[^.!?\n]{0,20}\b(anyone|anybody|your (bank|family|parents|wife|husband)|(mum|mom|dad|mother|father|my (wife|husband|parents)))\b/i,
@@ -69,6 +74,7 @@
     },
     {
       id: "threat",
+      reason: "Threats of arrest, fines or account closure are used to rush you into paying.",
       label: "Threatens arrest, fines, or account closure",
       patterns: [
         /\b(arrest(ed)?|arrest warrant|warrant|deport(ed|ation)?|legal action|lawsuit|prosecut(e|ed|ion))\b/i,
@@ -78,6 +84,7 @@
     },
     {
       id: "upfront_fee",
+      reason: "Real prizes, refunds and deliveries don't ask you to pay a fee first.",
       label: "Asks for a fee before you get money, a prize, or a parcel",
       patterns: [
         /\b(processing|registration|clearance|release|delivery|customs|activation|transfer|handling|unlock(ing)?) (fee|charge|payment)\b/i,
@@ -143,7 +150,7 @@
     const flags = [];
     for (const rule of RULES) {
       const match = findMatch(text, rule.patterns);
-      if (match) flags.push({ category: rule.id, label: rule.label, match: match });
+      if (match) flags.push({ category: rule.id, label: rule.label, reason: rule.reason, severity: "medium", match: match });
     }
     const urgent = findMatch(text, URGENCY_PATTERNS) !== null;
 
@@ -170,7 +177,13 @@
     }
 
     if (urgent && band !== "Low") {
-      flags.push({ category: "urgency", label: "Pressures you to act fast", match: findMatch(text, URGENCY_PATTERNS) });
+      flags.push({
+        category: "urgency",
+        label: "Pressures you to act fast",
+        reason: "Scams create a deadline so you act before you think or ask anyone.",
+        severity: "low",
+        match: findMatch(text, URGENCY_PATTERNS),
+      });
     }
 
     return {

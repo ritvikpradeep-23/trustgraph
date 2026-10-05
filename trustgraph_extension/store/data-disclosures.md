@@ -6,8 +6,10 @@ Review these before submitting; you are certifying them.
 
 Tick these:
 
-- [x] **Personal communications**: the text of a message the user chooses to
-  check (after a click on the shield button or "Check with TrustGraph").
+- [x] **Personal communications**: the text of the messages the user chooses
+  to check: the loaded messages of the open conversation (after a click on the
+  TrustGraph button), or one message (shield / "Check with TrustGraph").
+  Messages the user sent themselves are not transmitted.
   Processed on the user's device (offline Basic check) or sent to the
   TrustGraph server the user configures, by default `http://127.0.0.1:8000`
   on the user's own computer. Only sent to the shared scam database when the

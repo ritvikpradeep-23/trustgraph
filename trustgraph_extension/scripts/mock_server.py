@@ -18,6 +18,7 @@ Never ship this; build_zip.py leaves scripts/ out of the package.
 import argparse
 import json
 import re
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HIGH_WORDS = re.compile(r"gift ?card|otp|verification code|anydesk|teamviewer|bitcoin|arrest|warrant", re.I)
@@ -25,6 +26,7 @@ CAUTION_WORDS = re.compile(r"urgent|fee|prize|suspend|password|crypto|won\b", re
 
 ALL_ENDPOINTS = False
 FAIL_SCORE = False
+SLOW = 0.0
 
 
 def score(text):
@@ -81,6 +83,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/score" and FAIL_SCORE:
             return self._send(500, {"detail": "mock failure"})
         if self.path == "/api/score":
+            if SLOW:
+                time.sleep(SLOW)
             text = str(data.get("message_text", ""))
             print(f"  score  channel={data.get('channel')!r} chars={len(text)}")
             return self._send(200, score(text))
@@ -97,14 +101,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global ALL_ENDPOINTS, FAIL_SCORE
+    global ALL_ENDPOINTS, FAIL_SCORE, SLOW
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--all", action="store_true", help="also serve /api/settings, /api/status, /api/report")
     parser.add_argument("--fail", action="store_true", help="answer /api/score with HTTP 500 (tests the error path)")
+    parser.add_argument("--slow", type=float, default=0, metavar="SECONDS", help="delay each /api/score answer (to see the scanning state)")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     ALL_ENDPOINTS = args.all
     FAIL_SCORE = args.fail
+    SLOW = args.slow
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     extras = "score, settings, status, report" if ALL_ENDPOINTS else "score only"
     print(f"Mock TrustGraph server on http://127.0.0.1:{args.port} ({extras}). Ctrl+C to stop.")

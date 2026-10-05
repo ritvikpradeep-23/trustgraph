@@ -53,7 +53,7 @@
         "adapters/whatsapp/reader.js",
         "adapters/whatsapp/adapter.js",
         "content/chat-store.js",
-        "content/popup.js",
+        "content/panel.js",
         "content/core.js"
       ]
     },
@@ -66,7 +66,7 @@
         "adapters/kit.js",
         "adapters/gmail.js",
         "content/chat-store.js",
-        "content/popup.js",
+        "content/panel.js",
         "content/core.js"
       ]
     },
@@ -80,7 +80,7 @@
         "adapters/meta-chat.js",
         "adapters/messenger.js",
         "content/chat-store.js",
-        "content/popup.js",
+        "content/panel.js",
         "content/core.js"
       ]
     },
@@ -94,7 +94,7 @@
         "adapters/meta-chat.js",
         "adapters/instagram.js",
         "content/chat-store.js",
-        "content/popup.js",
+        "content/panel.js",
         "content/core.js"
       ]
     },
@@ -107,7 +107,7 @@
         "adapters/kit.js",
         "adapters/stub.js",
         "content/chat-store.js",
-        "content/popup.js",
+        "content/panel.js",
         "content/core.js"
       ]
     }

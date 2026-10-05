@@ -1,9 +1,12 @@
 # TrustGraph Chrome extension
 
-Checks a single message, chosen by you, for scam signals. Hover a message on
-a supported site and click the shield, or select text anywhere and
-right-click **Check with TrustGraph**. It flags and warns; it never hides,
-deletes, or blocks anything.
+Checks messages you choose for scam signals. On a supported chat site, click
+the round TrustGraph button to scan the open conversation: a side panel
+docks on the right (narrowing the page instead of covering it) with the
+verdict, each red flag and "Jump to message". Or hover one message and click
+the shield, or select text anywhere and right-click **Check with
+TrustGraph**. It flags and warns; it never hides, deletes, or blocks
+anything.
 
 Manifest V3, plain JavaScript, no build step.
 

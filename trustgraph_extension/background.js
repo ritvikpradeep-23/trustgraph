@@ -149,6 +149,33 @@ async function scoreMessage(text, channel) {
   }
 }
 
+// A whole chat (or the new messages since the last pass). Scores each item
+// with scoreMessage(); once the server is found to be offline, the rest go
+// straight to the Basic check instead of each waiting for a timeout.
+// Returns {results: {id: result}, server: "server" | "offline" | "error"}.
+async function scoreBatch(items, channel) {
+  const results = {};
+  const queue = items.filter((it) => it && it.id && normaliseText(it.text));
+  let offline = false;
+  let errored = false;
+
+  async function worker() {
+    while (queue.length) {
+      const item = queue.shift();
+      if (offline) {
+        results[item.id] = { ...basicCheck(normaliseText(item.text)), offline: true };
+        continue;
+      }
+      const result = await scoreMessage(item.text, channel);
+      if (result.offline) offline = true;
+      if (result.serverError) errored = true;
+      results[item.id] = result;
+    }
+  }
+  await Promise.all(Array.from({ length: TG.SERVER_CONCURRENCY }, worker));
+  return { results, server: offline ? "offline" : errored ? "error" : "server" };
+}
+
 // ---------------------------------------------------------------------------
 // Local counters (COUNTS ONLY, never message text)
 // stats = { byDay: { "2026-10-05": { checked, flagged, byChannel: { whatsapp: {checked, flagged} } } } }
@@ -261,8 +288,8 @@ async function onContextMenuClick(info, tab) {
   const target = { tabId: tab.id, frameIds: [0] }; // the card always goes in the top frame
 
   try {
-    // Safe to run twice: popup.js ignores a second injection.
-    await chrome.scripting.executeScript({ target, files: ["shared/constants.js", "content/popup.js"] });
+    // Safe to run twice: panel.js ignores a second injection.
+    await chrome.scripting.executeScript({ target, files: ["shared/constants.js", "content/panel.js"] });
   } catch (err) {
     // e.g. chrome:// pages, the Web Store, or the PDF viewer can't be scripted.
     console.warn("[TrustGraph] can't add the result card to this page:", err.message);
@@ -302,6 +329,16 @@ async function handleMessage(msg, sender) {
       // noStats: the onboarding "Try it" sample shouldn't count as a check.
       if (!result.empty && !msg.noStats) await recordCheck(msg.channel || "other", result.band);
       return result;
+    }
+    case TG.MSG.SCORE_BATCH: {
+      const out = await scoreBatch(msg.items || [], msg.channel || "other");
+      // A chat scan counts as one check; re-scoring new messages doesn't.
+      if (msg.count) {
+        const bands = Object.values(out.results).map((r) => r.band);
+        const worst = bands.includes("High") ? "High" : bands.includes("Caution") ? "Caution" : "Low";
+        await recordCheck(msg.channel || "other", worst);
+      }
+      return out;
     }
     case TG.MSG.REPORT:
       return reportMessage(msg.text);

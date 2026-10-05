@@ -93,6 +93,17 @@
       return (first && kit.findScroller(first)) || candidates[0] || null;
     },
 
+    // WhatsApp's app root, narrowed along with the page when the panel opens.
+    pushTarget() {
+      return document.querySelector("#app");
+    },
+
+    // The launcher must never sit on the chat header's buttons.
+    chatHeader() {
+      const m = main();
+      return m ? m.querySelector("header") : null;
+    },
+
     // Area the side panel must never cover.
     messagePane() {
       return adapter.scroller() || main();

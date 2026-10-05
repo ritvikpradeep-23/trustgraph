@@ -142,9 +142,17 @@
   // Returns "outgoing", "incoming", "center" (system notices) or "unknown".
   function directionOf(bubble, pane) {
     if (!bubble || !pane) return "unknown";
-    const b = bubble.getBoundingClientRect();
+    let b = bubble.getBoundingClientRect();
     const p = pane.getBoundingClientRect();
     if (!b.width || !p.width) return "unknown";
+    // A block that spans the pane says nothing about alignment: measure
+    // where its text actually sits instead.
+    if (b.width > p.width * 0.85) {
+      const range = document.createRange();
+      range.selectNodeContents(bubble);
+      const t = range.getBoundingClientRect();
+      if (t.width) b = t;
+    }
     const leftGap = b.left - p.left;
     const rightGap = p.right - b.right;
     if (Math.abs(leftGap - rightGap) < p.width * 0.04) return "center";

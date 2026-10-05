@@ -41,6 +41,8 @@
   TG.HEARTBEAT_MS = 15 * 1000;
   TG.MAX_TEXT = 4000; // characters sent for one check
   TG.STATS_KEEP_DAYS = 90;
+  TG.SERVER_CONCURRENCY = 4; // parallel /api/score calls during a chat scan
+  TG.MAX_SCAN_MESSAGES = 40; // most recent incoming messages scored per scan
 
   // Band colors and card titles. The band word is always shown as text too,
   // so the verdict never relies on color alone.
@@ -78,6 +80,7 @@
   // Message types passed between content scripts, pages and the background.
   TG.MSG = {
     SCORE: "score",
+    SCORE_BATCH: "scoreBatch", // a whole chat: {items: [{id, text}], channel, count}
     REPORT: "report",
     GET_SETTINGS: "getSettings",
     SET_SETTINGS: "setSettings",

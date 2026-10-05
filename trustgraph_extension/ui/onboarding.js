@@ -17,18 +17,15 @@
 
   $("try").addEventListener("click", async () => {
     const button = $("try");
-    const box = $("sample");
-    const text = box.value;
-    const anchor = () => box.getBoundingClientRect();
-
+    const text = $("sample").value;
     button.disabled = true;
-    TrustGraphCard.showChecking(anchor());
+    TrustGraphPanel.showChecking();
     try {
       const result = await chrome.runtime.sendMessage({ type: TG.MSG.SCORE, text, channel: "other", noStats: true });
-      // No {text} context: the sample shouldn't be reportable.
-      TrustGraphCard.showResult(result, anchor());
+      // No {text} in the context: the sample shouldn't be reportable.
+      TrustGraphPanel.showSingle(result, {});
     } catch (err) {
-      TrustGraphCard.showError("Couldn't run the check. Try reloading this page.", anchor());
+      TrustGraphPanel.showSingle({ error: "Couldn't run the check. Try reloading this page." });
     } finally {
       button.disabled = false;
     }

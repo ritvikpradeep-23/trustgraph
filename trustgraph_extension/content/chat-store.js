@@ -164,6 +164,10 @@
       let added = 0;
       let reachedTop = false;
       let quietAtTop = 0;
+      // Virtualised lists (WhatsApp) re-render rows as you scroll; static
+      // ones (Gmail, most pages) never do. Only wait patiently for slow
+      // renders once the list has shown it re-renders.
+      let rerenders = false;
       try {
         for (let step = 0; step < maxSteps && added < maxMessages; step++) {
           if (signal && signal.aborted) break;
@@ -172,10 +176,11 @@
           scroller.scrollTop = Math.max(0, scroller.scrollTop - scroller.clientHeight * 0.8);
           // Wait for the list to re-render. If nothing changed yet (a slow
           // render), wait again rather than scrolling on and skipping rows.
-          let changed = await waitForRows(scroller, 700);
-          for (let retry = 0; !changed && retry < 2 && scroller.scrollTop !== topBefore; retry++) {
+          let changed = await waitForRows(scroller, rerenders ? 700 : step === 0 ? 900 : 300);
+          for (let retry = 0; rerenders && !changed && retry < 2 && scroller.scrollTop !== topBefore; retry++) {
             changed = await waitForRows(scroller, 700);
           }
+          if (changed) rerenders = true;
           this.readNow();
           added += this.map.size - before;
           if (onProgress) onProgress({ step: step + 1, added });

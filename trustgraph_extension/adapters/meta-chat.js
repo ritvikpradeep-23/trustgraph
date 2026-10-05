@@ -117,7 +117,9 @@
           const bubble = leaves[0] || row.querySelector("img, video") || row;
           let direction = kit.directionOf(bubble, pane);
           let type = text ? "text" : mediaType ? "media" : "empty";
-          if (direction === "center" && !mediaType && text.length < 60) type = DATE_ROW.test(text) ? "date" : "system";
+          // Only an obvious date/time line counts as a separator; anything
+          // else stays a message so it still gets checked.
+          if (direction === "center" && !mediaType && text.length < 40 && DATE_ROW.test(text)) type = "date";
           if (type === "empty") {
             stats.skipped["no text or media"] = (stats.skipped["no text or media"] || 0) + 1;
             continue;

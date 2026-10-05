@@ -22,12 +22,15 @@ Not sure about a message? TrustGraph checks it for common scam signals and
 tells you why, in plain words.
 
 HOW IT WORKS
-• Hover a message on WhatsApp Web, Gmail, Facebook Messenger, or Instagram
-  DMs and click the small shield.
+• On WhatsApp Web, Gmail, Facebook Messenger or Instagram DMs, click the
+  TrustGraph button to check the conversation you have open. A side panel
+  shows the result next to the chat without covering it.
+• To check one message, hover it and click the small shield.
 • On any other site, select the text, right-click, and choose
   "Check with TrustGraph".
-• You get a clear result (Low, Caution, or High) with a one-line reason.
-  Click "Why?" for the details.
+• You get a clear result (Low risk, Caution, or High risk) that says how
+  many messages were read, lists each red flag with the words that matched,
+  and can jump to the message in the chat.
 
 WHAT IT LOOKS FOR
 Requests for gift cards, one-time codes or passwords, remote-access apps,
@@ -39,9 +42,11 @@ TrustGraph only flags and explains. It never hides, deletes, or changes
 messages, and it never contacts anyone on your behalf.
 
 PRIVATE BY DESIGN
-• Nothing is read until you click the shield or use right-click.
-• Only the message you pick is checked, and only by the TrustGraph server
-  you choose (your own computer by default).
+• Nothing is read until you click: the TrustGraph button reads the open
+  conversation; the shield or right-click reads one message.
+• Messages are checked only by the TrustGraph server you choose (your own
+  computer by default), or on your device if it isn't running. Your own
+  messages aren't sent.
 • No message text is stored. Only your settings and daily counts stay on
   your device.
 • No analytics, no ads, no selling of data.
@@ -64,9 +69,9 @@ GOOD TO KNOW
 
 ## Screenshots to capture (1280×800, PNG)
 
-1. A WhatsApp Web test chat with the verdict card showing "TrustGraph: likely
-   scam" on a gift-card message.
-2. The "Why?" panel expanded.
+1. A WhatsApp Web test chat with the side panel showing "High risk" and the
+   red flags list (gift card + one-time code).
+2. The same chat in dark mode with the signal meters (server running).
 3. Right-click "Check with TrustGraph" on a normal web page.
 4. The toolbar popup (status, counts, "Recognizing N messages").
 5. The onboarding page.
