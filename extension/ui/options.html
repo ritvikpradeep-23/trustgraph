@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustGraph settings</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="top">
+      <svg class="tg-logo logo" viewBox="0 0 24 24" aria-hidden="true">
+        <path class="shield" d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/>
+        <path class="check" d="m8.5 12.2 2.4 2.4 4.8-5" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>TrustGraph settings</h1>
+      <p id="saved" class="saved" role="status" aria-live="polite"></p>
+    </header>
+
+    <section class="tg-card" aria-labelledby="h-sources">
+      <h2 id="h-sources">Sources</h2>
+      <p class="tg-muted">Where the hover shield appears. Right-click checks work on every site regardless.</p>
+      <div class="row">
+        <label for="src-whatsapp">WhatsApp Web</label>
+        <input type="checkbox" id="src-whatsapp" data-source="whatsapp" class="tg-switch" role="switch">
+      </div>
+      <div class="row">
+        <label for="src-gmail">Gmail <span class="tg-badge">experimental</span></label>
+        <input type="checkbox" id="src-gmail" data-source="gmail" class="tg-switch" role="switch">
+      </div>
+      <div class="row">
+        <label for="src-messenger">Facebook Messenger <span class="tg-badge">experimental</span></label>
+        <input type="checkbox" id="src-messenger" data-source="messenger" class="tg-switch" role="switch">
+      </div>
+      <div class="row">
+        <label for="src-instagram">Instagram DMs <span class="tg-badge">experimental</span></label>
+        <input type="checkbox" id="src-instagram" data-source="instagram" class="tg-switch" role="switch">
+      </div>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-mode">
+      <h2 id="h-mode">Mode</h2>
+      <fieldset>
+        <legend class="tg-visually-hidden">Checking mode</legend>
+        <label class="radio">
+          <input type="radio" name="mode" value="point" checked>
+          <span><strong>Point and check</strong><br><span class="tg-muted">Nothing is read until you click the shield or use right-click.</span></span>
+        </label>
+        <label class="radio disabled">
+          <input type="radio" name="mode" value="auto" disabled>
+          <span><strong>Automatic</strong> <span class="tg-badge">Coming soon</span><br><span class="tg-muted">Not available yet.</span></span>
+        </label>
+      </fieldset>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-time">
+      <h2 id="h-time">Time-saved estimate</h2>
+      <p class="tg-muted">Used only for the "Time saved (estimate)" number in the toolbar popup: checks × minutes.</p>
+      <div class="row">
+        <label for="minutes">Minutes saved per check</label>
+        <span class="range-wrap">
+          <input type="range" id="minutes" min="1" max="10" step="1" aria-describedby="minutes-value">
+          <output id="minutes-value" for="minutes"></output>
+        </span>
+      </div>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-advanced">
+      <h2 id="h-advanced">Advanced</h2>
+      <label for="backend" class="block-label">TrustGraph server URL</label>
+      <p class="tg-muted" id="backend-help">Your own computer by default. Allowed: http://127.0.0.1 or http://localhost (any port), or any https:// address.</p>
+      <div class="inline">
+        <input type="url" id="backend" spellcheck="false" autocomplete="off" aria-describedby="backend-help backend-msg">
+        <button type="button" id="backend-save" class="tg-btn primary">Save</button>
+        <button type="button" id="backend-test" class="tg-btn">Test connection</button>
+        <button type="button" id="backend-reset" class="tg-btn">Reset</button>
+      </div>
+      <p id="backend-msg" class="msg" role="status" aria-live="polite"></p>
+
+      <div class="row spaced">
+        <label for="debug">Debug mode <span class="tg-muted">(outlines the messages TrustGraph recognizes and logs details to the page console)</span></label>
+        <input type="checkbox" id="debug" class="tg-switch" role="switch">
+      </div>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-data">
+      <h2 id="h-data">Your data</h2>
+      <p class="tg-muted">TrustGraph stores only your settings and daily counts on this device, never message text.</p>
+      <button type="button" id="clear" class="tg-btn">Clear local data</button>
+      <p id="clear-msg" class="msg" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-about">
+      <h2 id="h-about">About</h2>
+      <p>TrustGraph <span id="version"></span> flags messages that look like scams. It warns; it never hides, deletes, or changes anything.</p>
+      <p><a href="privacy.html">Privacy policy</a> · <a href="onboarding.html">Getting started</a></p>
+    </section>
+  </main>
+
+  <script src="../shared/constants.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

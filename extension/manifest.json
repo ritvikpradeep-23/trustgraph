@@ -7,6 +7,14 @@
   "background": {
     "service_worker": "background.js"
   },
+  "action": {
+    "default_title": "TrustGraph",
+    "default_popup": "ui/popup.html"
+  },
+  "options_ui": {
+    "page": "ui/options.html",
+    "open_in_tab": true
+  },
   "permissions": ["contextMenus", "activeTab", "scripting", "storage"],
   "host_permissions": [
     "https://web.whatsapp.com/*",

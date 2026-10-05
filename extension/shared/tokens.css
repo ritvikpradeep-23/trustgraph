@@ -55,6 +55,10 @@
 }
 
 /* Shared base for extension pages */
+[hidden] {
+  display: none !important; /* beat component display rules like .tg-btn */
+}
+
 *,
 *::before,
 *::after {
@@ -131,4 +135,84 @@ button {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Toggle switch: <input type="checkbox" role="switch" class="tg-switch"> */
+.tg-switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: #8a93b5; /* off: 3:1 against white */
+  cursor: pointer;
+  transition: background var(--tg-duration);
+}
+.tg-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--tg-duration);
+}
+.tg-switch:checked {
+  background: var(--tg-low);
+}
+.tg-switch:checked::after {
+  transform: translateX(18px);
+}
+.tg-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status pill: always text + color */
+.tg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-border);
+  color: var(--tg-text);
+  white-space: nowrap;
+}
+.tg-pill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pill-dot, #8a93b5);
+}
+.tg-pill[data-state="active"] { --pill-dot: var(--tg-low); }
+.tg-pill[data-state="paused"] { --pill-dot: #8a93b5; }
+.tg-pill[data-state="offline"],
+.tg-pill[data-state="basic"] { --pill-dot: var(--tg-caution); }
+
+.tg-card {
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius);
+  padding: 14px 16px;
+}
+
+.tg-muted {
+  color: var(--tg-text-muted);
+}
+
+/* Logo: shield + check, recolored for dark mode */
+.tg-logo .shield { fill: var(--tg-navy); }
+.tg-logo .check { stroke: var(--tg-ice); }
+@media (prefers-color-scheme: dark) {
+  .tg-logo .shield { fill: var(--tg-ice); }
+  .tg-logo .check { stroke: var(--tg-navy); }
 }

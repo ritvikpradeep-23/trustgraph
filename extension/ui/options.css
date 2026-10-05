@@ -1,0 +1,153 @@
+body {
+  background: var(--tg-bg);
+}
+
+main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.saved {
+  margin: 0 0 0 auto;
+  font-size: 13px;
+  color: var(--tg-text-muted);
+}
+
+h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+section p {
+  margin: 0 0 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--tg-border);
+}
+
+.row:first-of-type {
+  border-top: 0;
+}
+
+.row label {
+  cursor: pointer;
+}
+
+.row.spaced {
+  margin-top: 12px;
+  border-top: 1px solid var(--tg-border);
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radio {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.radio input {
+  margin-top: 4px;
+  accent-color: var(--tg-navy);
+}
+
+.radio.disabled {
+  cursor: not-allowed;
+}
+
+.range-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-wrap input {
+  width: 180px;
+  accent-color: var(--tg-navy);
+}
+
+output {
+  min-width: 52px;
+  font-weight: 600;
+}
+
+.block-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline input {
+  flex: 1 1 260px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: var(--tg-radius-sm);
+  border: 1px solid var(--tg-border);
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  font: inherit;
+}
+
+.inline input[aria-invalid="true"] {
+  border-color: var(--tg-coral);
+}
+
+.msg {
+  margin: 8px 0 0;
+  min-height: 1.2em;
+  font-size: 13px;
+}
+
+.msg.error {
+  color: #c62834;
+}
+
+@media (prefers-color-scheme: dark) {
+  .msg.error {
+    color: #ff8a93;
+  }
+  .radio input,
+  .range-wrap input {
+    accent-color: var(--tg-ice);
+  }
+}

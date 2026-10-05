@@ -50,7 +50,16 @@
     High: { color: "#E63946", title: "TrustGraph: likely scam" },
   };
 
-  TG.SIGNAL_NAMES = ["continuity", "similarity", "precedent", "anomaly"];
+  TG.CHANNEL_LABELS = {
+    whatsapp: "WhatsApp Web",
+    gmail: "Gmail",
+    messenger: "Facebook Messenger",
+    instagram: "Instagram DMs",
+    test: "the test page",
+    other: "other sites",
+  };
+
+  TG.SIGNAL_NAMES =["continuity", "similarity", "precedent", "anomaly"];
 
   TG.TEXT = {
     basicLabel:

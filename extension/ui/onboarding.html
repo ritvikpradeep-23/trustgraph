@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to TrustGraph</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <svg class="tg-logo logo" viewBox="0 0 24 24" aria-hidden="true">
+        <path class="shield" d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z"/>
+        <path class="check" d="m8.5 12.2 2.4 2.4 4.8-5" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Welcome to TrustGraph</h1>
+      <p class="lead">Not sure about a message? Check it in one click. TrustGraph flags signs of a scam and explains why. It only warns, and never hides or deletes anything.</p>
+    </header>
+
+    <ol class="steps">
+      <li class="tg-card">
+        <span class="num" aria-hidden="true">1</span>
+        <div>
+          <h2>Start the TrustGraph server, or use the Basic check</h2>
+          <p>For the full analysis, run the TrustGraph server on this computer (by default at <code>http://127.0.0.1:8000</code>). If it isn't running, TrustGraph still works with a simpler <strong>Basic check</strong> that runs on your device. Results say which one was used.</p>
+          <p id="server-status" class="tg-muted" role="status">Checking for the server…</p>
+        </div>
+      </li>
+      <li class="tg-card">
+        <span class="num" aria-hidden="true">2</span>
+        <div>
+          <h2>Open a supported site</h2>
+          <p>WhatsApp Web, Gmail, Facebook Messenger (facebook.com/messages), or Instagram DMs. Gmail, Messenger, and Instagram support is experimental.</p>
+        </div>
+      </li>
+      <li class="tg-card">
+        <span class="num" aria-hidden="true">3</span>
+        <div>
+          <h2>Hover a message and click the shield</h2>
+          <p>A small shield appears at the top-right of the message under your pointer. On any other site, select the text, right-click, and choose <strong>Check with TrustGraph</strong>.</p>
+        </div>
+      </li>
+    </ol>
+
+    <section class="tg-card try" aria-labelledby="h-try">
+      <h2 id="h-try">Try it</h2>
+      <label for="sample" class="tg-muted">A sample message (edit it if you like):</label>
+      <textarea id="sample" rows="3">Hi Mum, I lost my phone so this is my new number. Can you buy two Google Play gift cards and send me the codes? It's urgent, please don't tell Dad.</textarea>
+      <div class="actions">
+        <button type="button" id="try" class="tg-btn primary">Check this message</button>
+        <span class="tg-muted small">Sample checks aren't added to your counts.</span>
+      </div>
+    </section>
+
+    <section class="tg-card" aria-labelledby="h-privacy">
+      <h2 id="h-privacy">Your privacy, in short</h2>
+      <ul class="privacy">
+        <li>Nothing is read until you click the shield or use right-click.</li>
+        <li>Only the message you choose is sent, and only to the TrustGraph server you set (your own computer by default).</li>
+        <li>No message text is stored. TrustGraph keeps only your settings and daily counts.</li>
+        <li>A message is shared with the scam database only if you click <strong>Report as scam</strong> and confirm.</li>
+        <li>No analytics, no ads, and no selling or sharing of data.</li>
+      </ul>
+      <p><a href="privacy.html">Read the full privacy policy</a> · <a href="options.html">Open settings</a></p>
+    </section>
+  </main>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../content/popup.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>

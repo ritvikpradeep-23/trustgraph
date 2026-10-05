@@ -69,6 +69,8 @@ async function setSettings(patch) {
   const next = { ...settings, ...patch };
   if (patch.sources) next.sources = { ...(settings.sources || {}), ...patch.sources };
   await chrome.storage.local.set({ settings: next });
+  // A different server: forget what we knew about the old one.
+  if ("backend_url" in patch) await chrome.storage.local.remove(["server_settings", "last_score_source"]);
   return readSettings();
 }
 
@@ -278,8 +280,11 @@ async function onContextMenuClick(info, tab) {
   await send({ type: TG.MSG.SHOW_RESULT, result, text });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   createContextMenu();
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("ui/onboarding.html") });
+  }
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -294,7 +299,8 @@ async function handleMessage(msg, sender) {
   switch (msg && msg.type) {
     case TG.MSG.SCORE: {
       const result = await scoreMessage(msg.text, msg.channel);
-      if (!result.empty) await recordCheck(msg.channel || "other", result.band);
+      // noStats: the onboarding "Try it" sample shouldn't count as a check.
+      if (!result.empty && !msg.noStats) await recordCheck(msg.channel || "other", result.band);
       return result;
     }
     case TG.MSG.REPORT:
