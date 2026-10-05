@@ -40,8 +40,14 @@ python3 extension/scripts/mock_server.py --all    # also /api/settings, /api/sta
 
 ```bash
 node extension/test/basic-check.test.js           # offline Basic check rules
-cd extension/test && python3 -m http.server 5500  # then open http://localhost:5500/test-chat.html
+cd extension && python3 -m http.server 5500       # serve the extension folder, then open:
+#   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
+#   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
 ```
+
+**Debug mode** (Settings → Debug) outlines every element the current site's
+adapter recognizes as a message and logs which selector strategy matched.
+Use it to calibrate an adapter after a site changes its HTML.
 
 ## Layout
 

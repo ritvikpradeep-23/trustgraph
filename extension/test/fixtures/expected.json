@@ -1,0 +1,18 @@
+{
+  "_readme": "One entry per fixture. adapter-tests.html loads the fixture HTML into an iframe with the listed scripts, then checks the adapter. 'messages[].index' is the position in adapter.listMessages(). 'text' must equal extractText() exactly; 'sender' is checked when present (null means 'expect null'). 'origin' is the real-site status: 'real' = pasted from the live site; 'synthetic' = written by hand from selector hints, NOT proof the live site works.",
+  "fixtures": [
+    {
+      "name": "stub (test page)",
+      "file": "stub.html",
+      "origin": "synthetic",
+      "channel": "test",
+      "scripts": ["adapters/stub.js"],
+      "count": 3,
+      "messages": [
+        { "index": 0, "text": "Hi love, are you coming for dinner on Sunday?", "sender": "Mum" },
+        { "index": 1, "text": "Can you buy two Google Play gift cards? It's urgent.", "sender": "Unknown number" },
+        { "index": 2, "text": "", "sender": "Sam" }
+      ]
+    }
+  ]
+}

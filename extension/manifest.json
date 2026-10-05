@@ -16,5 +16,11 @@
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
-  "optional_host_permissions": ["https://*/*"]
+  "optional_host_permissions": ["https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:5500/*"],
+      "js": ["shared/constants.js", "adapters/kit.js", "adapters/stub.js", "content/popup.js", "content/core.js"]
+    }
+  ]
 }
