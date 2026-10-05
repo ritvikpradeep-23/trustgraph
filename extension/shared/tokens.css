@@ -1,0 +1,134 @@
+/* TrustGraph design tokens, shared by the extension pages (toolbar popup,
+   options, onboarding). The on-page verdict card lives in a shadow root and
+   can't see this file, so content/popup.js mirrors these values.
+   System fonts only: no remote fonts, CDNs, or scripts. */
+
+:root {
+  color-scheme: light dark;
+
+  --tg-navy: #1e2761;
+  --tg-ice: #cadcfc;
+  --tg-coral: #e63946;
+  --tg-card: #f3f6fc;
+
+  /* Band colors. Always paired with the band word, never color alone.
+     Text on these backgrounds is black for WCAG AA contrast. */
+  --tg-low: #1c8a5a;
+  --tg-caution: #b8860b;
+  --tg-high: #e63946;
+  --tg-on-band: #000;
+
+  --tg-bg: #ffffff;
+  --tg-surface: var(--tg-card);
+  --tg-text: #141a3c;
+  --tg-text-muted: #4a5378; /* 7.4:1 on white */
+  --tg-border: #d5dcec;
+  --tg-accent: var(--tg-navy);
+  --tg-on-accent: #ffffff;
+  --tg-focus: #2f6fed;
+
+  --tg-radius: 12px;
+  --tg-radius-sm: 8px;
+  --tg-shadow: 0 6px 24px rgba(20, 26, 60, 0.18);
+  --tg-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tg-duration: 140ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-bg: #11152e;
+    --tg-surface: #1b2140;
+    --tg-text: #e8eefc;
+    --tg-text-muted: #a9b4d6;
+    --tg-border: #2e365c;
+    --tg-accent: var(--tg-ice);
+    --tg-on-accent: #10142c;
+    --tg-focus: #8fb2ff;
+    --tg-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --tg-duration: 0ms;
+  }
+}
+
+/* Shared base for extension pages */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--tg-font);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tg-text);
+  background: var(--tg-bg);
+}
+
+a {
+  color: var(--tg-accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--tg-focus);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+}
+
+.tg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: var(--tg-radius-sm);
+  border: 1px solid var(--tg-border);
+  background: var(--tg-surface);
+  color: var(--tg-text);
+  cursor: pointer;
+  transition: background var(--tg-duration);
+}
+
+.tg-btn:hover {
+  border-color: var(--tg-accent);
+}
+
+.tg-btn.primary {
+  background: var(--tg-accent);
+  border-color: var(--tg-accent);
+  color: var(--tg-on-accent);
+}
+
+.tg-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tg-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--tg-ice);
+  color: #10142c;
+}
+
+.tg-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

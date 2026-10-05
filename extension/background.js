@@ -237,6 +237,56 @@ async function getStatus() {
 }
 
 // ---------------------------------------------------------------------------
+// Right-click "Check with TrustGraph" (works on any site via activeTab)
+// ---------------------------------------------------------------------------
+
+const MENU_ID = "trustgraph-check";
+
+// Menus persist across worker restarts, so create them once per install or
+// update. removeAll first avoids a "duplicate id" error on update.
+function createContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: MENU_ID, title: "Check with TrustGraph", contexts: ["selection"] });
+  });
+}
+
+async function onContextMenuClick(info, tab) {
+  if (info.menuItemId !== MENU_ID) return;
+  if (!tab || tab.id === undefined || tab.id < 0) {
+    console.warn("[TrustGraph] can't show a result in this kind of tab");
+    return;
+  }
+  const target = { tabId: tab.id, frameIds: [0] }; // the card always goes in the top frame
+
+  try {
+    // Safe to run twice: popup.js ignores a second injection.
+    await chrome.scripting.executeScript({ target, files: ["shared/constants.js", "content/popup.js"] });
+  } catch (err) {
+    // e.g. chrome:// pages, the Web Store, or the PDF viewer can't be scripted.
+    console.warn("[TrustGraph] can't add the result card to this page:", err.message);
+    return;
+  }
+
+  const send = (msg) => chrome.tabs.sendMessage(tab.id, msg, { frameId: 0 }).catch(() => {});
+  // Anchor to the selection only when it's in the top frame (we can't
+  // measure a selection inside an iframe from here).
+  await send({ type: TG.MSG.SHOW_CHECKING, useSelection: !info.frameId });
+
+  const text = info.selectionText || "";
+  const result = await scoreMessage(text, "other");
+  if (!result.empty) await recordCheck("other", result.band);
+  await send({ type: TG.MSG.SHOW_RESULT, result, text });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  createContextMenu();
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  onContextMenuClick(info, tab).catch((err) => console.error("[TrustGraph]", err));
+});
+
+// ---------------------------------------------------------------------------
 // Message router: content scripts and extension pages talk to us here.
 // ---------------------------------------------------------------------------
 

@@ -62,7 +62,7 @@
       id: "secrecy",
       label: "Asks you to keep it secret",
       patterns: [
-        /\b(don'?t|do not|never) (tell|inform|mention (this|it) to)\b[^.!?\n]{0,20}\b(anyone|anybody|your (bank|family|parents|wife|husband))\b/i,
+        /\b(don'?t|do not|never) (tell|inform|mention (this|it) to)\b[^.!?\n]{0,20}\b(anyone|anybody|your (bank|family|parents|wife|husband)|(mum|mom|dad|mother|father|my (wife|husband|parents)))\b/i,
         /\bkeep (this|it) (a )?(secret|between us|confidential|to yourself)\b/i,
         /\bbetween (you and me|us only)\b/i,
       ],

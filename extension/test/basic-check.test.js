@@ -29,6 +29,7 @@ const CASES = [
   ["Deposit 0.1 BTC to start earning.", "Caution", ["crypto"]],
   ["This investment has guaranteed returns of 30% a month.", "Caution", ["crypto"]],
   ["Keep this between us please.", "Caution", ["secrecy"]],
+  ["Love you. Please don't tell Dad about the surprise party.", "Caution", ["secrecy"]], // known false positive: the Basic check can't read intent
   ["Your account will be suspended for unusual activity.", "Caution", ["threat"]],
   ["You won! Pay the delivery fee of $2.99 to claim your prize.", "Caution", ["upfront_fee"]],
 
@@ -40,6 +41,7 @@ const CASES = [
     "High",
     ["threat", "crypto", "secrecy"],
   ],
+  ["Can you buy two Google Play gift cards? It's urgent, please don't tell Dad.", "High", ["gift_card", "secrecy"]],
   ["Install TeamViewer immediately, your bank account has been frozen.", "High", ["remote_access", "threat"]],
 ];
 
