@@ -165,6 +165,138 @@
         "https://www.instagram.com/",
         "https://www.instagram.com/directory/"
       ]
+    },
+    {
+      "name": "LinkedIn messaging",
+      "file": "linkedin.synthetic.html",
+      "origin": "synthetic",
+      "channel": "linkedin",
+      "scripts": [
+        "adapters/config.js",
+        "adapters/sites.js"
+      ],
+      "count": 3,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Hi! We have a remote job for you: earn 3000 daily by liking videos.",
+          "sender": "Priya Recruiter"
+        },
+        {
+          "index": 1,
+          "text": "Just pay a registration fee of Rs 499 to start.",
+          "sender": "Priya Recruiter"
+        },
+        {
+          "index": 2,
+          "text": "No thanks.",
+          "sender": "You"
+        }
+      ],
+      "matchUrls": [
+        "https://www.linkedin.com/messaging/thread/2-abc/",
+        "https://www.linkedin.com/messaging/"
+      ],
+      "noMatchUrls": [
+        "https://www.linkedin.com/feed/",
+        "https://www.linkedin.com/messagingx"
+      ]
+    },
+    {
+      "name": "Telegram Web (K)",
+      "file": "telegram.synthetic.html",
+      "origin": "synthetic",
+      "channel": "telegram",
+      "scripts": [
+        "adapters/config.js",
+        "adapters/sites.js"
+      ],
+      "count": 3,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Guaranteed 3x returns in 7 days. Send USDT to join.",
+          "sender": "Alex Admin"
+        },
+        {
+          "index": 1,
+          "text": "Only 5 slots left today",
+          "sender": "Alex Admin"
+        },
+        {
+          "index": 2,
+          "text": "Is this legit?"
+        }
+      ],
+      "matchUrls": [
+        "https://web.telegram.org/k/#@cryptovip",
+        "https://web.telegram.org/a/#-100123"
+      ],
+      "noMatchUrls": [
+        "https://telegram.org/",
+        "https://web.telegram.org/"
+      ]
+    },
+    {
+      "name": "Discord",
+      "file": "discord.synthetic.html",
+      "origin": "synthetic",
+      "channel": "discord",
+      "scripts": [
+        "adapters/config.js",
+        "adapters/sites.js"
+      ],
+      "count": 2,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Free Nitro for everyone! Claim here: dlscord-gift.xyz/claim",
+          "sender": "NitroGiveaway"
+        },
+        {
+          "index": 1,
+          "text": "Log in with your account to receive it",
+          "sender": "NitroGiveaway"
+        }
+      ],
+      "matchUrls": [
+        "https://discord.com/channels/111/222",
+        "https://canary.discord.com/channels/@me/333"
+      ],
+      "noMatchUrls": [
+        "https://discord.com/",
+        "https://discord.com/app"
+      ]
+    },
+    {
+      "name": "Slack",
+      "file": "slack.synthetic.html",
+      "origin": "synthetic",
+      "channel": "slack",
+      "scripts": [
+        "adapters/config.js",
+        "adapters/sites.js"
+      ],
+      "count": 2,
+      "messages": [
+        {
+          "index": 0,
+          "text": "I need you to buy 5 Apple gift cards for a client today. Keep this between us.",
+          "sender": "CEO (external)"
+        },
+        {
+          "index": 1,
+          "text": "Send me the codes when done",
+          "sender": "CEO (external)"
+        }
+      ],
+      "matchUrls": [
+        "https://app.slack.com/client/T123/C456"
+      ],
+      "noMatchUrls": [
+        "https://slack.com/",
+        "https://app.slack.com/"
+      ]
     }
   ]
 }

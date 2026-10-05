@@ -48,6 +48,25 @@ const check = (ok, name) => {
   check(e.riskLevel !== "low", "local rules still win when they are higher than the server");
   check(V.normalizeRemote({ riskLevel: "weird", score: 3 }) === null && V.normalizeRemote({ nope: 1 }) === null, "unknown answers are rejected");
 
+  // Whole chat: worst message wins, signals pooled, continuity from metadata.
+  const E = require("../shared/rules/engine.js");
+  const friend = "Ravi";
+  const items = [
+    { id: "a", text: "Are we still meeting Sunday?", sender: friend, senderHistory: 0, prevSameSender: false },
+    { id: "b", text: "Great, see you then", sender: friend, senderHistory: 1, prevSameSender: false },
+    { id: "c", text: "ok", sender: "Me?", senderHistory: 0, prevSameSender: false },
+    { id: "d", text: "Urgent! I'm stuck abroad, send Rs 20,000 and 2 Amazon gift card codes now, don't tell anyone", sender: friend, senderHistory: 2, prevSameSender: false },
+  ];
+  const results = E.analyzeChat(items);
+  for (const k of Object.keys(results)) results[k] = E.combine(results[k], null, "local");
+  const chat = V.aggregate(items, results, { id: "chat-1234567890", server: "local" });
+  check(chat.riskLevel === "high" && chat.id === "chat-1234567890" && chat.engine === "local", `chat verdict = worst message (${chat.riskLevel} ${chat.score})`);
+  check(chat.continuity.state === "changed" && chat.signals.some((s) => s.id === "continuity_break"), "continuity: ordinary messages then requests -> changed + continuity signal");
+  check(chat.signals.filter((s) => s.id !== "continuity_break").every((s) => s.messageId === "d"), "signals point at the message they came from");
+  check(/^Across the 4 messages/.test(chat.explanation), "chat explanation says how many messages were read");
+  const calm = V.aggregate(items.slice(0, 2), results, {});
+  check(calm.riskLevel === "low" && calm.continuity.state === "steady" && calm.signals.length === 0, "an ordinary chat: low, steady, no signals");
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");
   process.exit(failed ? 1 : 0);
 })();

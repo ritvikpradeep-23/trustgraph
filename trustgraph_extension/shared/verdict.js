@@ -171,6 +171,77 @@
     };
   }
 
+  // A whole chat -> one Verdict.
+  //   items:   the scored messages in order [{id, sender, ...}] (text unused)
+  //   results: {id: engine result (already merged with the server's answer)}
+  //   opts:    {id, sensitivity, server: "server" | "offline" | "error" | "local"}
+  // The verdict is the worst message's; signals are pooled across messages
+  // (each keeps the message its evidence came from, for "Jump to message").
+  function aggregate(items, results, opts = {}) {
+    const sensitivity = opts.sensitivity || "balanced";
+    const levelOf = (r) => (sensitivity === "balanced" ? String(r.band || "Low").toLowerCase() : levelFor(Math.round((r.score || 0) * 100), sensitivity));
+    const scored = items.filter((it) => results[it.id]);
+    let top = null;
+    let level = "low";
+    const pool = [];
+    const weak = new Set();
+    for (const it of scored) {
+      const r = results[it.id];
+      const lv = levelOf(r);
+      if (!top || r.score > top.score) top = r;
+      if (LEVEL_RANK[lv] > LEVEL_RANK[level]) level = lv;
+      for (const w of r.weakSignals || []) weak.add(w);
+      if (lv === "low") continue;
+      for (const f of [...(r.flags || []).filter((f) => f.ruleId === "server"), ...(r.hits || r.flags || [])]) pool.push({ ...f, messageId: f.messageId || it.id });
+    }
+    pool.sort((a, b) => (b.weight || 0) - (a.weight || 0));
+    const signals = level === "low" ? [] : signalsFrom(pool, top && top.contributions);
+    for (const s of signals) s.count = new Set(pool.filter((f) => (RULE_SIGNAL[f.ruleId] || "pattern_similarity") === s.id).map((f) => f.messageId)).size;
+
+    const continuity = continuityOf(scored, results, levelOf);
+    if (continuity.state === "changed" && level !== "low" && !signals.some((s) => s.id === "continuity_break")) {
+      signals.push({ id: "continuity_break", ...SIGNAL_TYPES.continuity_break, description: continuity.text, severity: "medium", ruleIds: ["continuity"], evidence: null, messageId: continuity.messageId, count: 1 });
+    }
+
+    let similarity = { score: 0, text: "Doesn't match any scam pattern TrustGraph knows." };
+    for (const it of scored) {
+      const sim = similarityFrom(results[it.id]);
+      if (sim.score > similarity.score) similarity = sim;
+    }
+    const base = top || { score: 0, contributions: [], weakSignals: [] };
+    const anyBasic = scored.some((it) => results[it.id].source !== "server");
+    const prefix = scored.length > 1 ? `Across the ${scored.length} messages from others: ` : "";
+    const text = explain({ ...base, weakSignals: [...weak] }, level, signals);
+    return {
+      id: opts.id || newId(),
+      riskLevel: level,
+      score: Math.round((base.score || 0) * 100),
+      explanation: prefix ? prefix + (text[0].toLowerCase() + text.slice(1)).replace("this message", "these messages") : text,
+      signals,
+      continuity,
+      similarity,
+      engine: opts.server === "local" ? "local" : "remote",
+      source: scored.length && !anyBasic ? "server" : "basic",
+      offline: opts.server === "offline",
+      serverError: opts.server === "error" ? "server error" : null,
+      details: { score01: base.score || 0, contributions: base.contributions || [], weakSignals: [...weak] },
+    };
+  }
+
+  // Did the conversation change shape? Looks only at verdict levels and
+  // who sent what (metadata), never at earlier text.
+  function continuityOf(items, results, levelOf) {
+    if (items.length < 2) return { state: "single", text: "Only one message from others so far: nothing earlier to compare with." };
+    const key = (it) => it.sender || "\u0000them";
+    const flagged = items.filter((it) => levelOf(results[it.id]) !== "low");
+    if (!flagged.length) return { state: "steady", text: `No change in tone or purpose across the ${items.length} messages read.` };
+    const first = flagged[0];
+    const earlier = items.slice(0, items.indexOf(first)).filter((it) => key(it) === key(first));
+    if (earlier.length >= 2) return { state: "changed", messageId: first.id, text: `This sender's ${earlier.length} earlier messages looked ordinary, then the requests started. A sudden change of purpose is a common sign of a hacked or impersonated account.` };
+    if (!earlier.length && (first.senderHistory || 0) === 0) return { state: "new", messageId: first.id, text: "The warning signs start with this sender's first messages here: there's no earlier history to compare with." };
+    return { state: "steady", text: "The warning signs are in line with this sender's earlier messages." };
+  }
+
   // One calm paragraph: what landed the verdict where it is.
   function explain(result, level, signals) {
     const names = signals.slice(0, 3).map((s) => s.name.toLowerCase());
@@ -241,7 +312,7 @@
     };
   }
 
-  const api = { SIGNAL_TYPES, SIGNAL_ORDER, RULE_SIGNAL, THRESHOLDS, levelFor, fromEngine, normalizeRemote, signalsFrom, newId, LocalEngine, RemoteEngine };
+  const api = { SIGNAL_TYPES, SIGNAL_ORDER, RULE_SIGNAL, THRESHOLDS, levelFor, fromEngine, aggregate, normalizeRemote, signalsFrom, newId, LocalEngine, RemoteEngine };
   root.TrustGraphVerdict = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(globalThis);

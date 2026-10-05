@@ -11,7 +11,7 @@
 
   const TG = window.TG;
   const Panel = window.TrustGraphPanel;
-  const RANK = { Low: 0, Caution: 1, High: 2 };
+  const Verdict = window.TrustGraphVerdict;
   const ADAPTERS = window.TrustGraphAdapters || [];
   const SHIELD_SIZE = 30;
   const LOG = "[TrustGraph]";
@@ -49,8 +49,10 @@
       const fresh = await send({ type: TG.MSG.GET_SETTINGS });
       if (fresh && !fresh.error) settings = fresh;
     } catch (_) {
-      // Keep defaults; the shield still works with the Basic check.
+      // Keep defaults; the shield still works with the on-device rules.
     }
+    Panel.setTheme(settings.theme);
+    shieldHost.setAttribute("data-theme", settings.theme === "light" ? "light" : "dark");
     evaluate();
   }
 
@@ -73,7 +75,18 @@
     }
     updateLauncher();
     updateDebug();
+    maybeAutoScan();
   }
+
+  // Auto-scan (Settings → Scanning): scan the open chat in the background
+  // with only the rail showing; the panel opens by itself for High risk.
+  function maybeAutoScan() {
+    if (!active || settings.scan_mode !== "auto" || !adapter.read || scan || Panel.isOpen()) return;
+    const key = safe(() => adapter.chatKey(), null);
+    if (!key || key === autoDismissedKey) return;
+    startScan({ auto: true });
+  }
+  let autoDismissedKey = null;
 
   function safe(fn, fallback) {
     try {
@@ -89,52 +102,14 @@
   // -------------------------------------------------------------------------
   const shieldHost = document.createElement("trustgraph-shield");
   shieldHost.style.cssText = "all: initial; position: fixed; z-index: 2147483646; top: 0; left: 0; display: none;";
+  shieldHost.setAttribute("data-theme", "dark");
   const shieldRoot = shieldHost.attachShadow({ mode: "closed" });
-  try {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(`
-      button {
-        all: initial; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
-        width: ${SHIELD_SIZE}px; height: ${SHIELD_SIZE}px; border-radius: 50%; cursor: pointer;
-        background: #1e2761; color: #fff; border: 2px solid #fff;
-        box-shadow: 0 2px 8px rgba(20, 26, 60, .35);
-        transition: transform 120ms ease-out;
-      }
-      button:hover { transform: scale(1.08); }
-      button:focus-visible { outline: 3px solid #2f6fed; outline-offset: 2px; }
-      button[aria-busy="true"] { opacity: .6; cursor: progress; }
-      svg { width: 16px; height: 16px; display: block; pointer-events: none; }
-      @media (prefers-reduced-motion: reduce) { button { transition: none; } button:hover { transform: none; } }
-    `);
-    shieldRoot.adoptedStyleSheets = [sheet];
-  } catch (_) {}
+  // Blue tile, white shield, soft glow; a pulsing ring while checking
+  // (.tg-shield in shared/design.js).
+  window.TrustGraphDesign.adopt(shieldRoot, ":host { all: initial; }");
 
-  const shieldButton = document.createElement("button");
-  shieldButton.type = "button";
-  shieldButton.setAttribute("aria-label", "Check this message with TrustGraph");
-  shieldButton.title = "Check this message with TrustGraph";
-  shieldButton.appendChild(shieldIcon());
+  const shieldButton = window.TrustGraphUI.el("button", { type: "button", class: "tg-shield", "aria-label": "Check this message with TrustGraph", title: "Check this message with TrustGraph" }, [window.TrustGraphUI.icon("shieldCheck", { stroke: 2 })]);
   shieldRoot.appendChild(shieldButton);
-
-  // Shield-with-check icon, built with DOM calls (no innerHTML).
-  function shieldIcon() {
-    const NS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("aria-hidden", "true");
-    const shield = document.createElementNS(NS, "path");
-    shield.setAttribute("d", "M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z");
-    shield.setAttribute("fill", "currentColor");
-    const check = document.createElementNS(NS, "path");
-    check.setAttribute("d", "m8.5 12.2 2.4 2.4 4.8-5");
-    check.setAttribute("fill", "none");
-    check.setAttribute("stroke", "#1e2761");
-    check.setAttribute("stroke-width", "2.2");
-    check.setAttribute("stroke-linecap", "round");
-    check.setAttribute("stroke-linejoin", "round");
-    svg.append(shield, check);
-    return svg;
-  }
 
   function ensureShieldInDom() {
     if (!shieldHost.isConnected) document.documentElement.appendChild(shieldHost);
@@ -151,9 +126,11 @@
     if (!currentMessage || !currentMessage.isConnected) return hideShield();
     const rect = currentMessage.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
-    // Top-right corner of the message, nudged inside it, kept on screen.
-    const top = Math.max(4, rect.top + 4);
-    const left = Math.min(vw - SHIELD_SIZE - 4, rect.right - SHIELD_SIZE - 4);
+    // A corner of the message (Settings → Shield position), nudged inside
+    // it, kept on screen.
+    const where = settings.shield_position || "top-right";
+    const top = where === "bottom-right" ? Math.max(4, Math.min(window.innerHeight - SHIELD_SIZE - 4, rect.bottom - SHIELD_SIZE - 4)) : Math.max(4, rect.top + 4);
+    const left = where === "top-left" ? Math.max(4, rect.left + 4) : Math.min(vw - SHIELD_SIZE - 4, rect.right - SHIELD_SIZE - 4);
     if (rect.bottom < 0 || rect.top > window.innerHeight) return hideShield();
     shieldHost.style.top = top + "px";
     shieldHost.style.left = left + "px";
@@ -247,11 +224,12 @@
     inFlight = true;
     shieldButton.setAttribute("aria-busy", "true");
     Panel.showChecking({}, layoutOpts());
-    const context = { text, sender, onRetry: () => checkSingle(text, sender) };
+    const context = { onRetry: () => checkSingle(text, sender) };
     try {
       // The sender lets the rules weigh an unsaved number; it isn't stored.
-      const result = await send({ type: TG.MSG.SCORE, text, channel: adapter.channel, sender });
-      Panel.showSingle(result, context, layoutOpts());
+      // A short scanning state (the pulsing ring) even when the answer is instant.
+      const [response] = await Promise.all([send({ type: TG.MSG.SCORE, text, channel: adapter.channel, sender }), new Promise((r) => setTimeout(r, 450))]);
+      Panel.showSingle(response, context, layoutOpts());
     } catch (_) {
       Panel.showSingle({ error: "TrustGraph was updated or reloaded. Refresh this page and try again." }, {}, layoutOpts());
     } finally {
@@ -270,51 +248,50 @@
     const text = TrustGraphKit.clean(record ? record.text : safe(() => adapter.extractText(message), ""));
     stopScan(); // a single check replaces any chat scan in the panel
     if (!text) {
-      Panel.showSingle({ empty: true }, {}, layoutOpts());
+      Panel.showSingle({ verdict: { empty: true } }, {}, layoutOpts());
       return;
     }
     checkSingle(text, record ? record.sender : null);
   });
 
   // --- Whole chat (launcher) -----------------------------------------------
-  // scan = {store, results: Map(id -> result), server, report, earlier, ...}
+  // scan = {store, results: Map(id -> engine result), verdict, record, ...}
   // Results (with evidence snippets) live only here, in memory.
   let scan = null;
 
-  function startScan() {
+  function freshScanState(current) {
+    current.results = new Map(); // id -> merged result (on-device rules + server)
+    current.serverCache = new Map(); // id -> server answer, or null if none
+    current.server = null; // "server" | "offline" | "error" | "local" once known
+    current.verdictId = Verdict.newId(); // one verdict per chat scan
+    current.record = null; // the saved Result (no text), once recorded
+    current.saved = false;
+    current.wrong = false;
+    current.earlier = { running: false, label: "", reachedTop: false };
+    current.notice = "";
+    current.autoOpened = false;
+  }
+
+  // opts.auto: started by auto-scan (rail only until something is High).
+  function startScan(opts = {}) {
     if (!adapter || !adapter.read) return;
     stopScan();
-    const current = {
-      results: new Map(), // id -> merged result (on-device rules + server)
-      serverCache: new Map(), // id -> server answer, or null if none
-      server: null, // "server" | "offline" | "error" once known
-      counted: false,
-      busy: false,
-      again: false,
-      report: { state: "idle", count: 0 },
-      earlier: { running: false, label: "", reachedTop: false },
-      notice: "",
-    };
+    const current = { busy: false, again: false, auto: !!opts.auto };
+    freshScanState(current);
     current.store = new TrustGraphChatStore(adapter, {
       debug: settings.debug,
       onChange: (info) => {
         if (scan !== current) return;
         if (info.chatSwitched) {
           // A different chat: start its verdict from scratch.
-          current.results.clear();
-          current.serverCache.clear();
-          current.server = null;
-          current.counted = false;
-          current.report = { state: "idle", count: 0 };
-          current.earlier = { running: false, label: "", reachedTop: false };
-          current.notice = "";
+          freshScanState(current);
           renderScan("scanning");
         }
         scoreNew();
       },
     });
     scan = current;
-    Panel.open(layoutOpts());
+    Panel.open({ ...layoutOpts(), collapsed: current.auto });
     current.store.start(); // read first, so "Read N messages" is right at once
     renderScan("scanning");
     scoreNew();
@@ -380,21 +357,24 @@
         const local = TrustGraphEngine.analyzeChat(items);
         // Ask the server only about new messages, and not again once it's
         // known to be down (Retry clears that).
-        const ask = s.server === "offline" ? [] : items.filter((it) => !s.serverCache.has(it.id));
+        const ask = s.server === "offline" || s.server === "local" ? [] : items.filter((it) => !s.serverCache.has(it.id));
         if (ask.length) {
           const out = await send({ type: TG.MSG.SCORE_SERVER, items: ask.map((it) => ({ id: it.id, text: it.text })), channel: adapter.channel });
           if (scan !== s) return; // closed or restarted meanwhile
           for (const it of ask) s.serverCache.set(it.id, (out.results || {})[it.id] || null);
           s.server = out.server;
         }
-        s.results = new Map(items.map((it) => [it.id, TrustGraphEngine.combine(local[it.id], s.serverCache.get(it.id) || null, s.server || "offline")]));
-        if (!s.counted && s.store.readCount()) {
-          // A chat scan counts as one check (counts only, no text).
-          s.counted = true;
-          const worst = [...s.results.values()].reduce((w, r) => (RANK[r.band] > RANK[w] ? r.band : w), "Low");
-          send({ type: TG.MSG.RECORD_CHECK, channel: adapter.channel, band: worst }).catch(() => {});
-        }
+        const status = s.server === "local" ? "local" : s.server || "offline";
+        s.results = new Map(items.map((it) => [it.id, TrustGraphEngine.combine(local[it.id], s.serverCache.get(it.id) || null, status)]));
+        s.items = items;
+        s.verdict = Verdict.aggregate(items, Object.fromEntries(s.results), { id: s.verdictId, sensitivity: settings.sensitivity, server: s.server || "offline" });
+        if (s.store.readCount() && items.length) await recordVerdict(s);
+        if (scan !== s) return;
         renderScan("result");
+        if (s.auto && !s.autoOpened && s.verdict.riskLevel === "high" && Panel.isCollapsed()) {
+          s.autoOpened = true;
+          Panel.expand();
+        }
       } while (s.again && scan === s);
     } catch (_) {
       if (scan === s) renderScan("error", "TrustGraph was updated or reloaded. Refresh this page and try again.");
@@ -403,74 +383,63 @@
     }
   }
 
-  // Builds the panel state for the chat from the per-message results.
+  // Count the chat's verdict once, and keep its saved Result in step if the
+  // verdict rises as more messages are read. Only the verdict (no text)
+  // crosses to the background.
+  const RANK_L = { low: 0, caution: 1, high: 2 };
+  async function recordVerdict(s) {
+    const v = s.verdict;
+    const summary = { id: v.id, riskLevel: v.riskLevel, score: v.score, signals: v.signals.map((x) => ({ id: x.id })) };
+    if (!s.record) {
+      const res = await send({ type: TG.MSG.RECORD_RESULT, verdict: summary, channel: adapter.channel });
+      if (res && res.record) {
+        s.record = res.record;
+        s.saved = !!res.saved;
+      }
+      return;
+    }
+    const changed = RANK_L[v.riskLevel] !== RANK_L[s.record.riskLevel] || v.score !== s.record.score || summary.signals.length !== s.record.signalIds.length;
+    if (changed && s.saved) {
+      const res = await send({ type: TG.MSG.RECORD_RESULT, verdict: summary, channel: adapter.channel, update: true });
+      if (res && res.record) s.record = res.record;
+    }
+  }
+
+  // Builds the panel state for the chat.
   function renderScan(status, errorText) {
     const s = scan;
     if (!s) return;
-    const messages = s.store.messages();
-    const byId = new Map(messages.map((m) => [m.id, m]));
     const read = s.store.readCount();
-    let band = "Low";
-    let top = null;
-    let anyBasic = false;
-    const flags = [];
-    const seen = new Set();
-    for (const [id, r] of s.results) {
-      if (r.source !== "server") anyBasic = true;
-      if (!top || r.score > top.score) top = r;
-      if (RANK[r.band] > RANK[band]) band = r.band;
-      for (const f of r.flags || []) {
-        // A flag points at the message its evidence came from (a run of
-        // messages can put flags on earlier bubbles).
-        const mid = f.messageId || id;
-        const key = `${f.ruleId}|${mid}|${f.evidence ? f.evidence.start : ""}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const m = byId.get(mid) || {};
-        flags.push({
-          key: mid + "-" + f.ruleId,
-          title: f.title,
-          reason: f.reason,
-          evidence: f.evidence ? f.evidence.text : Panel.snippet(m.text),
-          severity: f.severity,
-          sender: m.sender || null,
-          timeText: m.timeText || "",
-          messageId: mid,
-        });
-      }
+    if (status === "result" && (read === 0 || !s.verdict)) status = read === 0 ? "nothing" : "scanning";
+    const byId = new Map(s.store.messages().map((m) => [m.id, m]));
+    const messageMeta = {};
+    for (const sig of (s.verdict && s.verdict.signals) || []) {
+      const m = byId.get(sig.messageId);
+      if (m) messageMeta[m.id] = { sender: m.sender || null, timeText: m.timeText || "" };
     }
-    const SEV = { high: 0, medium: 1, low: 2 };
-    flags.sort((a, b) => (SEV[a.severity] ?? 1) - (SEV[b.severity] ?? 1));
-    const serverResult = [...s.results.values()].find((r) => r.source === "server");
-    const scoredCount = s.results.size;
-    const source = scoredCount ? (anyBasic ? "basic" : "server") : s.server && s.server !== "server" ? "basic" : "server";
     const earlierLabel = s.earlier.reachedTop ? " (from the start of the chat)" : "";
-
-    if (status === "result" && read === 0) status = "nothing";
 
     Panel.render({
       mode: "chat",
       status,
-      band,
-      coverage: { read, scored: scoredCount, label: `Read ${read} ${read === 1 ? "message" : "messages"} from this chat${earlierLabel}` },
-      source,
-      server: s.server || "server",
-      flags,
-      signals: (top && top.source === "server" ? top : serverResult || {}).signals || [],
-      explanation: top ? top.explanation : "",
-      score: top ? top.score : null,
-      contributions: top ? top.contributions : [],
-      weakSignals: [...new Set([...s.results.values()].flatMap((r) => r.weakSignals || []))],
+      verdict: s.verdict,
+      coverage: { read, scored: (s.items || []).length, label: `Read ${read} ${read === 1 ? "message" : "messages"} from this chat${earlierLabel}` },
+      messageMeta,
       notice: s.notice,
       scanEarlier: {
         available: !!(adapter.scroller && safe(() => adapter.scroller(), null)) && !s.earlier.reachedTop,
         running: s.earlier.running,
         label: s.earlier.label,
       },
-      report: s.report,
+      record: s.record,
+      saved: s.saved,
+      wrong: s.wrong,
       errorText,
       on: {
-        close: () => stopScan(),
+        close: () => {
+          if (s.auto) autoDismissedKey = s.store.chatKey; // don't auto-scan this chat again right away
+          stopScan();
+        },
         retry: () => {
           // Try the server again for everything it hasn't answered.
           for (const [id, r] of s.serverCache) if (!r) s.serverCache.delete(id);
@@ -496,44 +465,27 @@
           s.notice = ok ? "" : "That message has scrolled out of view. Scroll the chat to find it.";
           renderScan("result");
         },
-        report: () => {
-          s.report = { state: "confirm", count: reportTexts(s).length };
-          renderScan("result");
+        toggleSave: async (on) => {
+          if (!s.record) return;
+          // Saving again stores the current verdict, which may have risen.
+          const record = { ...s.record, riskLevel: s.verdict.riskLevel, score: s.verdict.score, signalIds: s.verdict.signals.map((x) => x.id).slice(0, 8) };
+          try {
+            await send({ type: TG.MSG.SET_SAVED, record, saved: on });
+            s.record = record;
+            s.saved = on;
+          } catch (_) {}
+          if (scan === s) renderScan("result");
         },
-        reportCancel: () => {
-          s.report = { state: "idle", count: 0 };
-          renderScan("result");
+        markWrong: async () => {
+          try {
+            await send({ type: TG.MSG.MARK_WRONG, id: s.verdict.id }); // the id, nothing else
+          } catch (_) {}
+          s.wrong = true;
+          if (scan === s) renderScan("result");
         },
-        reportConfirm: async () => {
-          const texts = reportTexts(s);
-          s.report = { state: "sending", count: texts.length };
-          renderScan("result");
-          let ok = texts.length > 0;
-          for (const text of texts) {
-            try {
-              const res = await send({ type: TG.MSG.REPORT, text });
-              ok = ok && !!(res && res.ok);
-            } catch (_) {
-              ok = false;
-            }
-          }
-          if (scan !== s) return;
-          s.report = { state: ok ? "sent" : "unavailable", count: texts.length };
-          renderScan("result");
-        },
+        openWorkspace: () => s.record && send({ type: TG.MSG.OPEN_WORKSPACE, id: s.record.id }).catch(() => {}),
       },
     });
-  }
-
-  // What "Report as scam" sends: the flagged messages (up to 5), or the
-  // latest message from someone else if nothing was flagged.
-  function reportTexts(s) {
-    const flagged = candidates(s).filter((m) => {
-      const r = s.results.get(m.id);
-      return r && RANK[r.band] > 0;
-    });
-    const pick = flagged.length ? flagged.slice(-5) : candidates(s).slice(-1);
-    return pick.map((m) => m.text);
   }
 
   // -------------------------------------------------------------------------
@@ -584,6 +536,7 @@
     }
     // Chat switched without a URL change (WhatsApp): the store resets itself.
     if (scan && safe(() => adapter.chatKey(), null) !== scan.store.chatKey) scan.store.refresh();
+    if (!scan && active && settings.scan_mode === "auto" && ticks % 2 === 0) maybeAutoScan();
     if (settings.debug && active && ticks % 3 === 0) {
       updateDebug(); // virtual lists add/remove messages as you scroll
     }

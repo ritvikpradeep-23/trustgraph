@@ -343,11 +343,17 @@ async function deviceSalt() {
 
 // A finished verdict: count it, keep its Result (if saving is on), notify
 // on High (if enabled). `text` is used only for the salted dedupe hash.
-async function handleVerdict(verdict, { channel, url, text, noStats }) {
+// update: a chat verdict that changed as more messages were read (already
+// counted once; only its saved Result is refreshed).
+async function handleVerdict(verdict, { channel, url, text, noStats, update }) {
   const settings = await readSettings();
   const hash = text ? await Result.saltedHash(text, await deviceSalt()) : undefined;
   const record = Result.fromVerdict(verdict, { channel: channel || "other", url: url || "", hash });
   if (noStats) return { record, saved: false };
+  if (update) {
+    if (settings.save_history) await addToHistory(record);
+    return { record, saved: !!settings.save_history };
+  }
   await recordStats(record.channel, record.riskLevel, record.score);
   const saved = !!settings.save_history;
   if (saved) await addToHistory(record);
@@ -556,7 +562,8 @@ async function checkInTab(tab, text, frameId) {
     console.warn("[TrustGraph] can't add the panel to this page:", err.message);
     return { error: "TrustGraph can't run on this page." };
   }
-  const send = (msg) => chrome.tabs.sendMessage(tab.id, msg, { frameId: 0 }).catch(() => {});
+  const { theme } = await readSettings();
+  const send = (msg) => chrome.tabs.sendMessage(tab.id, { theme, ...msg }, { frameId: 0 }).catch(() => {});
   await send({ type: TG.MSG.SHOW_CHECKING, useSelection: !frameId });
   const verdict = await scoreMessage(text, "other");
   const saved = verdict.empty ? null : await handleVerdict(verdict, { channel: "other", url: tab.url, text });
@@ -611,7 +618,7 @@ async function handleMessage(msg, sender) {
       return serverBatch(msg.items || [], msg.channel || "other");
     case TG.MSG.RECORD_RESULT: {
       // A chat scan's verdict, built in the page; no text crosses here.
-      const { record, saved } = await handleVerdict(msg.verdict, { channel: msg.channel || "other", url: tabUrl });
+      const { record, saved } = await handleVerdict(msg.verdict, { channel: msg.channel || "other", url: tabUrl, update: !!msg.update });
       return { record, saved };
     }
     case TG.MSG.SET_SAVED: {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TrustGraph",
   "version": "0.1.0",
-  "description": "Check a message you choose for scam signals. TrustGraph flags and warns; it never hides or deletes anything.",
+  "description": "Check a message you choose for scam signals. Only the verdict comes home: message text is never stored. It warns, never blocks.",
   "minimum_chrome_version": "110",
   "icons": {
     "16": "icons/icon-16.png",
@@ -49,9 +49,13 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
         "shared/rules/normalize.js",
         "shared/rules/rules.js",
         "shared/rules/engine.js",
+        "shared/verdict.js",
         "adapters/kit.js",
         "adapters/whatsapp/reader.js",
         "adapters/whatsapp/adapter.js",
@@ -66,9 +70,13 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
         "shared/rules/normalize.js",
         "shared/rules/rules.js",
         "shared/rules/engine.js",
+        "shared/verdict.js",
         "adapters/kit.js",
         "adapters/gmail.js",
         "content/chat-store.js",
@@ -82,9 +90,13 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
         "shared/rules/normalize.js",
         "shared/rules/rules.js",
         "shared/rules/engine.js",
+        "shared/verdict.js",
         "adapters/kit.js",
         "adapters/meta-chat.js",
         "adapters/messenger.js",
@@ -99,12 +111,42 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
         "shared/rules/normalize.js",
         "shared/rules/rules.js",
         "shared/rules/engine.js",
+        "shared/verdict.js",
         "adapters/kit.js",
         "adapters/meta-chat.js",
         "adapters/instagram.js",
+        "content/chat-store.js",
+        "content/panel.js",
+        "content/core.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://web.telegram.org/*",
+        "https://discord.com/*",
+        "https://ptb.discord.com/*",
+        "https://canary.discord.com/*",
+        "https://app.slack.com/*"
+      ],
+      "js": [
+        "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
+        "shared/verdict.js",
+        "adapters/kit.js",
+        "adapters/config.js",
+        "adapters/sites.js",
         "content/chat-store.js",
         "content/panel.js",
         "content/core.js"
@@ -116,15 +158,33 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/icons.js",
+        "shared/design.js",
+        "shared/ui.js",
         "shared/rules/normalize.js",
         "shared/rules/rules.js",
         "shared/rules/engine.js",
+        "shared/verdict.js",
         "adapters/kit.js",
         "adapters/stub.js",
         "content/chat-store.js",
         "content/panel.js",
         "content/core.js"
       ]
+    }
+  ],
+  "optional_permissions": [
+    "notifications"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/*.woff2"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "use_dynamic_url": true
     }
   ]
 }
