@@ -559,7 +559,7 @@
   function baseSingle(partial, context) {
     const s = { mode: "single", coverage: { read: 1, label: "" }, on: {}, ...partial };
     if (context.onRetry) s.on.retry = context.onRetry;
-    if (partial.status !== "result") return s;
+    if (partial.status !== "result" || context.sample) return s; // samples: no history actions
     const send = (msg) => chrome.runtime.sendMessage(msg);
     s.on.markWrong = async () => {
       try {

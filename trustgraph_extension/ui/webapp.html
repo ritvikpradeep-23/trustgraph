@@ -1,0 +1,52 @@
+<!doctype html>
+<!--
+  A stand-in for the TrustGraph web app, used while no web app URL is set
+  (Settings → Engine and web app). It reads the same mock store as the
+  extension's ApiClient (shared/api-client.js), so sign-in by pairing code,
+  sync and "Open in workspace" can be reviewed end to end. Routes:
+    #/login, #/register    issue a pairing code (no password, ever)
+    #/results/<id>          one synced result, and the workspace list
+-->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustGraph workspace (demo)</title>
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/icons.js"></script>
+  <script src="../shared/design.js"></script>
+  <script src="../shared/ui.js"></script>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: var(--bg); }
+    .bar { display: flex; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: var(--hair) solid color-mix(in srgb, var(--border) 65%, transparent); }
+    .bar .sp { flex: 1; }
+    .mockline { padding: 8px 28px; font: 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--caution); background: var(--caution-bg); border-bottom: var(--hair) solid var(--caution-line); }
+    main { max-width: 1040px; margin: 0 auto; padding: 36px 28px 64px; }
+    .auth { max-width: 460px; margin: 6vh auto 0; padding: 28px; display: grid; gap: 14px; }
+    .auth .tg-h { font-size: 34px; }
+    .code { font: 500 34px/1 var(--font-mono); letter-spacing: .12em; text-align: center; padding: 18px; border-radius: 14px; background: var(--bg-deep); border: 1px dashed var(--border); color: var(--accent-light); user-select: all; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-top: 18px; }
+    .res { padding: 22px; display: grid; gap: 14px; align-content: start; }
+    .res-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .res .tg-h { font-size: 32px; margin-top: 8px; }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+    dt { color: var(--text-dim); font: 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; padding-top: 2px; }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .list a { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: var(--hair) solid color-mix(in srgb, var(--border) 55%, transparent); color: var(--text); text-decoration: none; font-size: 13px; }
+    .list a[aria-current="page"] { border-color: var(--accent-light); }
+    .list .s { font: 400 18px var(--font-display); color: var(--c); }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="tg-root tg-grid-bg">
+  <div class="mockline">Demo web app inside the extension · set a real web app URL in Settings to replace it</div>
+  <header class="bar"><span id="logo"></span><span class="sp"></span><span class="tg-eyebrow">Workspace</span></header>
+  <main id="main"></main>
+  <script src="../shared/result.js"></script>
+  <script src="../shared/api-client.js"></script>
+  <script src="../shared/verdict.js"></script>
+  <script src="webapp.js"></script>
+</body>
+</html>

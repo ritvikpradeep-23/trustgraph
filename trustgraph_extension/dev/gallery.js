@@ -2,6 +2,7 @@
 // real verdicts from the local engine, in all three verdict states.
 (async function () {
   "use strict";
+  TrustGraphDesign.adopt(document);
   const U = TrustGraphUI;
   const { el } = U;
   const V = TrustGraphVerdict;

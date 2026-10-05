@@ -1,4 +1,7 @@
-/* Shared styles for the in-browser test pages. */
+/* Shared styles for the in-browser test pages (self-contained). */
+:root { color-scheme: light dark; --tg-border: #d5dcec; --tg-surface: #f3f6fc; --tg-radius: 12px; --tg-ice: #cadcfc; --tg-text-muted: #4a5378; }
+@media (prefers-color-scheme: dark) { :root { --tg-border: #2e365c; --tg-surface: #1b2140; --tg-text-muted: #a9b4d6; } }
+body { font: 14px/1.45 system-ui, sans-serif; }
 body { padding: 24px; max-width: 900px; margin: 0 auto; }
 h1 { font-size: 20px; }
 section { border: 1px solid var(--tg-border); border-radius: var(--tg-radius); padding: 12px 16px; margin: 12px 0; background: var(--tg-surface); }
