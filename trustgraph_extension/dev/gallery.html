@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  Component gallery: every TrustGraph component in Low / Caution / High.
+  Not shipped (build_zip.py leaves dev/ out). Open it either way:
+    - chrome-extension://<id>/dev/gallery.html  (extension loaded unpacked)
+    - cd trustgraph_extension && python3 -m http.server 5500
+      then http://localhost:5500/dev/gallery.html
+-->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustGraph components</title>
+  <script src="../shared/icons.js"></script>
+  <script src="../shared/design.js"></script>
+  <script src="../shared/ui.js"></script>
+  <script>TrustGraphDesign.adopt(document);</script>
+  <style>
+    body { margin: 0; background: var(--bg); }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 28px 80px; }
+    header.g { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+    header.g .tg-h { font-size: 34px; }
+    header.g .sp { flex: 1; }
+    section.g { margin-top: 36px; }
+    section.g > .tg-eyebrow { margin-bottom: 14px; }
+    .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .stack { display: grid; gap: 12px; align-content: start; }
+    .swatch { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; font: 12px var(--font-mono); color: var(--text-muted); }
+    .swatch i { width: 40px; height: 40px; border-radius: 10px; border: var(--hair) solid var(--border); }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+    .frame { position: relative; overflow: hidden; }
+    @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="tg-root tg-grid-bg">
+  <main id="app"></main>
+  <script src="../shared/rules/normalize.js"></script>
+  <script src="../shared/rules/rules.js"></script>
+  <script src="../shared/rules/engine.js"></script>
+  <script src="../shared/verdict.js"></script>
+  <script src="gallery.js"></script>
+</body>
+</html>

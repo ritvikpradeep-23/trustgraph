@@ -4,7 +4,7 @@
 
 Writes dist/trustgraph-<version>.zip (at the repo root) with manifest.json
 at the top of the zip. Leaves out dev-only material:
-  - test/, store/, scripts/, README.md, icons/icon.svg
+  - test/, store/, scripts/, dev/ (component gallery), README.md, icons/icon.svg
   - adapters/stub.js and the localhost:5500 test-page content script
 The local backend host permissions (127.0.0.1 / localhost) stay: they're how
 the extension reaches the TrustGraph server on the user's own computer.
@@ -18,7 +18,7 @@ from pathlib import Path
 EXT = Path(__file__).resolve().parent.parent
 DIST = EXT.parent / "dist"
 
-EXCLUDE_DIRS = {"test", "store", "scripts", "dist", "__pycache__", ".git"}
+EXCLUDE_DIRS = {"test", "store", "scripts", "dev", "dist", "__pycache__", ".git"}
 EXCLUDE_FILES = {"README.md", "adapters/stub.js", "icons/icon.svg", ".DS_Store"}
 DEV_MATCH = "localhost:5500"
 
