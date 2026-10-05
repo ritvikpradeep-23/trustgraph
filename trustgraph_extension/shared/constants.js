@@ -17,68 +17,89 @@
   // saved in chrome.storage.local; everything else falls back to these.
   TG.DEFAULT_SETTINGS = {
     paused: false,
-    mode: "point", // "point" = point and check. "auto" is coming later.
-    sources: { whatsapp: true, gmail: true, messenger: true, instagram: true },
-    minutes_per_check: 2,
-    backend_url: "http://127.0.0.1:8000",
+    // Where the shield and launcher appear. "generic" = any other site; it
+    // also needs the optional "all sites" permission.
+    sources: { whatsapp: true, gmail: true, messenger: true, instagram: true, linkedin: true, telegram: true, discord: true, slack: true, generic: false },
+    scan_mode: "click", // "click" = nothing is read until you click; "auto" = scan open chats (rail only, expands for High)
+    shield_position: "top-right", // "top-right" | "top-left" | "bottom-right"
+    sensitivity: "balanced", // "relaxed" | "balanced" | "strict"
+    notify_high: false, // needs the optional "notifications" permission
+    retention_days: 30, // 7 | 30 | 90 | 0 (= forever)
+    save_history: true, // "Save to history" in the panel starts switched on
+    theme: "dark", // "dark" | "light"
+    engine: "remote", // "remote" = TrustGraph server at backend_url (local rules as fallback) | "local" = on-device only
+    backend_url: "http://127.0.0.1:8000", // the scoring engine (TrustGraph Python server)
+    webapp_url: "", // the TrustGraph web app; empty = the built-in mock
+    demo_data: false,
     debug: false,
   };
 
-  // Every backend path lives here, so changing the server only means editing
-  // this object. Only `score` exists on the server today; the rest are coded
-  // against and fail gracefully until a teammate adds them.
+  // Scoring-engine paths (on backend_url).
   TG.ENDPOINTS = {
     score: "/api/score", // POST {message_text, channel}
-    settings: "/api/settings", // GET  (not built yet)
-    status: "/api/status", // POST {source, ts} heartbeat (not built yet)
-    report: "/api/report", // POST {message_text, category} (not built yet)
-    dashboard: "/", // opened from the toolbar popup
+    settings: "/api/settings", // GET  (optional)
+    status: "/api/status", // POST {source, ts} heartbeat (optional)
+    dashboard: "/", // reachability check
+  };
+
+  // Web app paths (on webapp_url). Only verdicts and metadata go here,
+  // never message text (see shared/result.js).
+  TG.WEBAPP = {
+    results: "/api/results", // POST Result, GET -> Result[]
+    result: "/api/results/", // DELETE /api/results/:id
+    export: "/api/export", // GET -> Result[]
+    feedback: "/api/feedback", // POST {resultId}  ("Mark as wrong verdict")
+    pair: "/api/extension/pair", // POST {code} -> {token, account: {name}}
+    login: "/login?source=extension",
+    register: "/register?source=extension",
+    resultPage: "/results/", // + id: "Open in workspace"
   };
 
   TG.TIMEOUT_SCORE_MS = 3000; // short: we fall back to the on-device check quietly
-  TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, report
+  TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, web app calls
   TG.SERVER_SETTINGS_MAX_AGE_MS = 60 * 1000;
   TG.HEARTBEAT_MS = 15 * 1000;
   TG.MAX_TEXT = 4000; // characters sent for one check
   TG.STATS_KEEP_DAYS = 90;
+  TG.HISTORY_MAX = 2000; // newest kept when over
   TG.SERVER_CONCURRENCY = 4; // parallel /api/score calls during a chat scan
   TG.MAX_SCAN_MESSAGES = 40; // most recent incoming messages scored per scan
 
-  // Band colors and card titles. The band word is always shown as text too,
-  // so the verdict never relies on color alone.
-  TG.BANDS = {
-    Low: { color: "#1C8A5A", title: "Looks OK" },
-    Caution: { color: "#B8860B", title: "TrustGraph: possible scam" },
-    High: { color: "#E63946", title: "TrustGraph: likely scam" },
-  };
-
   TG.CHANNEL_LABELS = {
-    whatsapp: "WhatsApp Web",
+    whatsapp: "WhatsApp",
     gmail: "Gmail",
-    messenger: "Facebook Messenger",
-    instagram: "Instagram DMs",
-    test: "the test page",
-    other: "other sites",
+    messenger: "Messenger",
+    instagram: "Instagram",
+    linkedin: "LinkedIn",
+    telegram: "Telegram",
+    discord: "Discord",
+    slack: "Slack",
+    generic: "Other sites",
+    test: "Test page",
+    other: "Other sites",
   };
 
-  TG.SIGNAL_NAMES =["continuity", "similarity", "precedent", "anomaly"];
-
-  TG.TEXT = {
-    nothingToCheck: "Nothing to check here",
-    nothingToCheckDetail:
-      "This message has no text (it may be an image, sticker, or voice note).",
-    checking: "Checking…",
-    reportConsent: "This message will be added to the shared scam database.",
-    reportOk: "Added. Similar messages will now be flagged.",
-    reportUnavailable: "Reporting isn't available right now.",
-  };
+  TG.SIGNAL_NAMES = ["continuity", "similarity", "precedent", "anomaly"]; // the Python server's four
 
   // Message types passed between content scripts, pages and the background.
   TG.MSG = {
-    SCORE: "score",
+    SCORE: "score", // {text, channel, sender, noStats} -> {verdict, record, saved}
     SCORE_SERVER: "scoreServer", // server only, for a chat scan: {items: [{id, text}], channel}
-    RECORD_CHECK: "recordCheck", // count one chat scan: {channel, band}
-    REPORT: "report",
+    RECORD_RESULT: "recordResult", // a chat scan's verdict (no text): {verdict, channel} -> {record, saved}
+    SET_SAVED: "setSaved", // {record, saved}: the panel's "Save to history" switch
+    MARK_WRONG: "markWrong", // {id}: sends only the verdict id
+    OPEN_WORKSPACE: "openWorkspace", // {id}
+    GET_HISTORY: "getHistory",
+    DELETE_RESULT: "deleteResult", // {id}
+    DELETE_ALL: "deleteAll",
+    EXPORT: "export", // {format: "json" | "csv"} -> {filename, mime, data}
+    GET_OVERVIEW: "getOverview",
+    GET_ACCOUNT: "getAccount",
+    OPEN_AUTH: "openAuth", // {page: "login" | "register"}
+    PAIR: "pair", // {code}
+    USE_LOCAL: "useLocal",
+    SIGN_OUT: "signOut",
+    CHECK_SELECTION: "checkSelection", // popup: check the selected text in the active tab
     GET_SETTINGS: "getSettings",
     SET_SETTINGS: "setSettings",
     HEARTBEAT: "heartbeat",
