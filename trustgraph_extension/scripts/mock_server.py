@@ -3,9 +3,9 @@
 The real backend (src/trustgraph/web/server.py) isn't in this repo yet, so
 this lets you test the extension's "server is up" path.
 
-    python3 extension/scripts/mock_server.py          # only /api/score
-    python3 extension/scripts/mock_server.py --all    # also settings/status/report
-    python3 extension/scripts/mock_server.py --fail   # /api/score returns HTTP 500
+    python3 trustgraph_extension/scripts/mock_server.py          # only /api/score
+    python3 trustgraph_extension/scripts/mock_server.py --all    # also settings/status/report
+    python3 trustgraph_extension/scripts/mock_server.py --fail   # /api/score returns HTTP 500
 
 By default only POST /api/score exists, like the real server today, so the
 extension's "not available yet" paths (report, settings, heartbeat) get a 404.

@@ -10,7 +10,7 @@
 // check in the UI.
 //
 // Loaded in the service worker (importScripts) and in Node for tests
-// (`node extension/test/basic-check.test.js`), hence the export at the end.
+// (`node trustgraph_extension/test/basic-check.test.js`), hence the export at the end.
 (function (root) {
   "use strict";
 

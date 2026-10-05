@@ -4,7 +4,7 @@ _Last updated: 5 October 2026_
 
 <!-- Host this page at a public URL (e.g. GitHub Pages) and paste that URL
      into the Chrome Web Store dashboard. Keep it in sync with
-     extension/ui/privacy.html, the copy shipped inside the extension. -->
+     trustgraph_extension/ui/privacy.html, the copy shipped inside the extension. -->
 
 TrustGraph is a browser extension that checks a message you choose for signs
 of a scam. This policy explains what it does with your data. In short: it

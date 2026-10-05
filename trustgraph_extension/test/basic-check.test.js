@@ -1,5 +1,5 @@
 // Tests for the offline Basic check. No dependencies:
-//   node extension/test/basic-check.test.js
+//   node trustgraph_extension/test/basic-check.test.js
 // Exits with code 1 if any case fails.
 "use strict";
 

@@ -1,11 +1,11 @@
 """Draws TrustGraph's icons and the Web Store promo tile. Dev-only.
 
     pip install pillow
-    python3 extension/scripts/make_icons.py
+    python3 trustgraph_extension/scripts/make_icons.py
 
 Writes:
-    extension/icons/icon-16.png, -32, -48, -128   (toolbar / extensions page)
-    extension/store/assets/promo-440x280.png       (Web Store small promo tile)
+    trustgraph_extension/icons/icon-16.png, -32, -48, -128   (toolbar / extensions page)
+    trustgraph_extension/store/assets/promo-440x280.png       (Web Store small promo tile)
 
 The artwork is a shield with a check mark, matching icons/icon.svg and
 the shield button on the page. Shapes are drawn at 8x and scaled down for

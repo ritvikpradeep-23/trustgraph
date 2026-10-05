@@ -1,6 +1,6 @@
 """Builds the Chrome Web Store package. Standard library only.
 
-    python3 extension/scripts/build_zip.py
+    python3 trustgraph_extension/scripts/build_zip.py
 
 Writes dist/trustgraph-<version>.zip (at the repo root) with manifest.json
 at the top of the zip. Leaves out dev-only material:

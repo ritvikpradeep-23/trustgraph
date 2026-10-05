@@ -10,7 +10,7 @@ Manifest V3, plain JavaScript, no build step.
 ## Load it in Chrome (Load unpacked)
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and pick this `extension/` folder.
+2. Click **Load unpacked** and pick this `trustgraph_extension/` folder.
 3. After changing any file, click the reload arrow on the TrustGraph card.
    Content scripts only update after you also reload the web page.
 
@@ -24,8 +24,8 @@ extension falls back to an on-device **Basic check** (red-flag rules in
 No backend in this repo yet? Use the dev mock (standard library only):
 
 ```bash
-python3 extension/scripts/mock_server.py          # only /api/score, like the real server today
-python3 extension/scripts/mock_server.py --all    # also /api/settings, /api/status, /api/report
+python3 trustgraph_extension/scripts/mock_server.py          # only /api/score, like the real server today
+python3 trustgraph_extension/scripts/mock_server.py --all    # also /api/settings, /api/status, /api/report
 ```
 
 ## Where to look when something breaks
@@ -39,8 +39,8 @@ python3 extension/scripts/mock_server.py --all    # also /api/settings, /api/sta
 ## Tests
 
 ```bash
-node extension/test/basic-check.test.js           # offline Basic check rules
-cd extension && python3 -m http.server 5500       # serve the extension folder, then open:
+node trustgraph_extension/test/basic-check.test.js           # offline Basic check rules
+cd trustgraph_extension && python3 -m http.server 5500       # serve the extension folder, then open:
 #   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
 #   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
 ```
@@ -93,15 +93,15 @@ nothing is left over from development.
 | 10 | OS dark mode and "reduce motion" on | Card, popup, and pages readable; no animation | all |
 | 11 | Settings → Clear local data | Counts back to 0, settings back to defaults | popup |
 
-Automated checks: `node extension/test/basic-check.test.js` and
+Automated checks: `node trustgraph_extension/test/basic-check.test.js` and
 `test/adapter-tests.html` (see Tests above).
 
 ## Build the Web Store package
 
 ```bash
 pip install pillow                       # only needed to redraw icons
-python3 extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 extension/scripts/build_zip.py   # -> dist/trustgraph-0.1.0.zip
+python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.1.0.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
