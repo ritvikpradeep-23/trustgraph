@@ -9,9 +9,9 @@
 //   - nothing important lives in memory; it's all in chrome.storage,
 //   - no setInterval (the content script drives the heartbeat instead).
 
-importScripts("shared/constants.js", "shared/basic-check.js");
+importScripts("shared/constants.js", "shared/rules/normalize.js", "shared/rules/rules.js", "shared/rules/engine.js");
 
-const { basicCheck } = self.TrustGraphBasicCheck;
+const Engine = self.TrustGraphEngine;
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -120,60 +120,79 @@ function normaliseText(text) {
   return String(text || "").replace(/\s+/g, " ").trim().slice(0, TG.MAX_TEXT);
 }
 
-// THE scoring function. Swap the body for a hosted API later; everything
-// else in the extension only depends on the shape it returns:
-//   {band, score, explanation, signals, source: "server"|"basic", flags?, serverError?}
-//   or {empty: true} when there's no text.
-async function scoreMessage(text, channel) {
-  const messageText = normaliseText(text);
-  if (!messageText) return { empty: true };
-
-  try {
-    const res = await backendFetch(TG.ENDPOINTS.score, {
+// Asks the TrustGraph server about one text. Short timeout, one quiet
+// retry on a network failure. Returns {data} for a valid answer or
+// {error} for an HTTP/shape problem; throws OfflineError if unreachable.
+async function serverScore(text, channel) {
+  const call = () =>
+    backendFetch(TG.ENDPOINTS.score, {
       method: "POST",
-      body: { message_text: messageText, channel: channel || "other" },
+      body: { message_text: text, channel: channel || "other" },
       timeout: TG.TIMEOUT_SCORE_MS,
     });
-    if (res.ok && isValidScore(res.data)) {
-      await chrome.storage.local.set({ last_score_source: "server" });
-      return { ...res.data, source: "server" };
-    }
-    // Server reachable but unhappy: still give the user an answer.
-    await chrome.storage.local.set({ last_score_source: "error" });
-    const reason = res.ok ? "unexpected response" : "HTTP " + res.status;
-    return { ...basicCheck(messageText), serverError: reason };
+  let res;
+  try {
+    res = await call();
+  } catch (err) {
+    if (!(err instanceof OfflineError)) throw err;
+    await new Promise((r) => setTimeout(r, 300));
+    res = await call(); // throws OfflineError again if still down
+  }
+  if (res.ok && isValidScore(res.data)) return { data: res.data };
+  return { error: res.ok ? "unexpected response" : "HTTP " + res.status };
+}
+
+// THE scoring function for one message. The on-device rules always run
+// (they name each red flag and quote the evidence); the server, when it's
+// up, adds its four signals and can raise the verdict. Swap serverScore()
+// for a hosted API later; callers only depend on the result shape
+// (shared/rules/engine.js) or {empty: true}.
+async function scoreMessage(text, channel, meta = {}) {
+  const messageText = normaliseText(text);
+  if (!messageText) return { empty: true };
+  const local = Engine.analyze(messageText, meta);
+  try {
+    const srv = await serverScore(messageText, channel);
+    await chrome.storage.local.set({ last_score_source: srv.data ? "server" : "error" });
+    return Engine.combine(local, srv.data || null, srv.data ? "server" : "error");
   } catch (err) {
     if (!(err instanceof OfflineError)) throw err;
     await chrome.storage.local.set({ last_score_source: "basic" });
-    return { ...basicCheck(messageText), offline: true };
+    return Engine.combine(local, null, "offline");
   }
 }
 
-// A whole chat (or the new messages since the last pass). Scores each item
-// with scoreMessage(); once the server is found to be offline, the rest go
-// straight to the Basic check instead of each waiting for a timeout.
-// Returns {results: {id: result}, server: "server" | "offline" | "error"}.
-async function scoreBatch(items, channel) {
+// Server answers for a chat scan (the on-device rules already ran in the
+// page). Once the server is found to be down, the rest are skipped rather
+// than each waiting for a timeout. Returns {results: {id: data|null},
+// server: "server" | "offline" | "error"}.
+async function serverBatch(items, channel) {
   const results = {};
   const queue = items.filter((it) => it && it.id && normaliseText(it.text));
   let offline = false;
   let errored = false;
-
   async function worker() {
     while (queue.length) {
       const item = queue.shift();
       if (offline) {
-        results[item.id] = { ...basicCheck(normaliseText(item.text)), offline: true };
+        results[item.id] = null;
         continue;
       }
-      const result = await scoreMessage(item.text, channel);
-      if (result.offline) offline = true;
-      if (result.serverError) errored = true;
-      results[item.id] = result;
+      try {
+        const srv = await serverScore(normaliseText(item.text), channel);
+        if (srv.error) errored = true;
+        results[item.id] = srv.data || null;
+      } catch (err) {
+        if (!(err instanceof OfflineError)) throw err;
+        offline = true;
+        results[item.id] = null;
+      }
     }
   }
   await Promise.all(Array.from({ length: TG.SERVER_CONCURRENCY }, worker));
-  return { results, server: offline ? "offline" : errored ? "error" : "server" };
+  const server = offline ? "offline" : errored ? "error" : "server";
+  await chrome.storage.local.set({ last_score_source: server === "server" ? "server" : server === "error" ? "error" : "basic" });
+  return { results, server };
 }
 
 // ---------------------------------------------------------------------------
@@ -325,21 +344,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 async function handleMessage(msg, sender) {
   switch (msg && msg.type) {
     case TG.MSG.SCORE: {
-      const result = await scoreMessage(msg.text, msg.channel);
+      const result = await scoreMessage(msg.text, msg.channel, { sender: msg.sender || null });
       // noStats: the onboarding "Try it" sample shouldn't count as a check.
       if (!result.empty && !msg.noStats) await recordCheck(msg.channel || "other", result.band);
       return result;
     }
-    case TG.MSG.SCORE_BATCH: {
-      const out = await scoreBatch(msg.items || [], msg.channel || "other");
-      // A chat scan counts as one check; re-scoring new messages doesn't.
-      if (msg.count) {
-        const bands = Object.values(out.results).map((r) => r.band);
-        const worst = bands.includes("High") ? "High" : bands.includes("Caution") ? "Caution" : "Low";
-        await recordCheck(msg.channel || "other", worst);
-      }
-      return out;
-    }
+    case TG.MSG.SCORE_SERVER:
+      return serverBatch(msg.items || [], msg.channel || "other");
+    case TG.MSG.RECORD_CHECK:
+      await recordCheck(msg.channel || "other", msg.band || "Low");
+      return { ok: true };
     case TG.MSG.REPORT:
       return reportMessage(msg.text);
     case TG.MSG.GET_SETTINGS:

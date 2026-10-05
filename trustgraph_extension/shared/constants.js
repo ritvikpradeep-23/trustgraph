@@ -35,7 +35,7 @@
     dashboard: "/", // opened from the toolbar popup
   };
 
-  TG.TIMEOUT_SCORE_MS = 5000; // full analysis can take a moment
+  TG.TIMEOUT_SCORE_MS = 3000; // short: we fall back to the on-device check quietly
   TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, report
   TG.SERVER_SETTINGS_MAX_AGE_MS = 60 * 1000;
   TG.HEARTBEAT_MS = 15 * 1000;
@@ -64,10 +64,6 @@
   TG.SIGNAL_NAMES =["continuity", "similarity", "precedent", "anomaly"];
 
   TG.TEXT = {
-    basicLabel:
-      "Basic check (offline). Start the TrustGraph server for the full analysis.",
-    serverErrorLabel:
-      "The TrustGraph server returned an error, so this is a Basic check.",
     nothingToCheck: "Nothing to check here",
     nothingToCheckDetail:
       "This message has no text (it may be an image, sticker, or voice note).",
@@ -80,7 +76,8 @@
   // Message types passed between content scripts, pages and the background.
   TG.MSG = {
     SCORE: "score",
-    SCORE_BATCH: "scoreBatch", // a whole chat: {items: [{id, text}], channel, count}
+    SCORE_SERVER: "scoreServer", // server only, for a chat scan: {items: [{id, text}], channel}
+    RECORD_CHECK: "recordCheck", // count one chat scan: {channel, band}
     REPORT: "report",
     GET_SETTINGS: "getSettings",
     SET_SETTINGS: "setSettings",

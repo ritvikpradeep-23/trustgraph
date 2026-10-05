@@ -33,9 +33,14 @@ HOW IT WORKS
   and can jump to the message in the chat.
 
 WHAT IT LOOKS FOR
-Requests for gift cards, one-time codes or passwords, remote-access apps,
-crypto payments, secrecy, threats of arrest or account closure, and upfront
-fees, plus the full TrustGraph engine's signals when its server is running.
+Requests for OTPs, PINs or passwords; "enter your UPI PIN to receive money";
+lookalike bank links and short links; KYC, PAN or Aadhaar "account blocked"
+messages; fake courier, customs, police and "digital arrest" calls;
+electricity disconnection threats; lottery and KBC prizes; part-time task
+jobs and registration fees; guaranteed-return investments and crypto;
+"Hi Mum, this is my new number"; remote-access apps; gift cards; blackmail;
+and pressure to act fast or keep it secret. Works in English, Malayalam,
+Manglish and Hinglish, and explains every flag with the words that matched.
 
 TRUSTGRAPH ONLY WARNS
 TrustGraph only flags and explains. It never hides, deletes, or changes

@@ -21,8 +21,10 @@ Manifest V3, plain JavaScript, no build step.
 
 The full analysis comes from the TrustGraph Python server (default
 `http://127.0.0.1:8000`, changeable in Settings). If it isn't running, the
-extension falls back to an on-device **Basic check** (red-flag rules in
-`shared/basic-check.js`) and labels the result as such.
+extension uses only its on-device scam rules (`shared/rules/`) and labels
+the result "basic check only". The on-device rules run either way: they
+name each red flag and quote the evidence; the server adds its four
+signals and can raise the verdict.
 
 No backend in this repo yet? Use the dev mock (standard library only):
 
@@ -42,7 +44,7 @@ python3 trustgraph_extension/scripts/mock_server.py --all    # also /api/setting
 ## Tests
 
 ```bash
-node trustgraph_extension/test/basic-check.test.js           # offline Basic check rules
+node trustgraph_extension/test/rules.test.js      # scam rules: 52 fixtures + engine checks
 cd trustgraph_extension && python3 -m http.server 5500       # serve the extension folder, then open:
 #   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
 #   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
@@ -86,6 +88,51 @@ looks like that. To calibrate a site:
    `strategies` (attribute-based selectors first) until it passes, then
    confirm on the live site with Debug mode on.
 
+## Scam rules (`shared/rules/`)
+
+`normalize.js` cleans text (Unicode, case, zero-width characters, Malayalam
+chillu spellings, leetspeak like "0tp", stretched words, spaced letters like
+"O T P") while keeping a map back to the original, so evidence quotes exactly
+what the message said. `rules.js` has the named rules, each with a weight and
+a plain-language reason, in English, Malayalam script, Manglish, Hinglish and
+Hindi. `engine.js` turns hits into a score:
+
+- weights combine as `1 - product(1 - w)`; combinations add their own weight
+  (link + urgency + money, "new number" + money, secrecy + payment, threat +
+  money demand, official warning + bad link)
+- negation before the match ("we will **never** ask for your OTP") and after
+  it ("OTP aarodum share **cheyyaruthu**", "**mat** batana")
+- developer conversations (repo, deploy, API, staging…) damp OTP/code rules
+- sender context: an unsaved number or a first message raises the score; a
+  saved contact with history lowers it
+- runs of messages from one sender are also scored together
+- **one sign can never produce High** (capped at 0.69)
+- bands: High from 0.70, Caution from 0.35
+
+| Rule | Weight | | Rule | Weight |
+|---|---|---|---|---|
+| otp_request (OTP/PIN/CVV/password) | 0.60 | | job_offer (task / like-and-earn) | 0.50 |
+| blackmail (sextortion) | 0.60 | | upfront_fee (pay to get) | 0.50 |
+| upi_collect (PIN/QR to "receive") | 0.55 | | investment (guaranteed/double/crypto) | 0.50 |
+| authority_threat (CBI, customs, digital arrest) | 0.55 | | kyc_block (KYC/PAN/Aadhaar, account blocked) | 0.50 |
+| power_cut (electricity disconnection) | 0.55 | | link_lookalike / punycode / IP / shortener / odd TLD | 0.50 / 0.45 / 0.45 / 0.30 / 0.25 |
+| remote_access (AnyDesk…) | 0.55 | | prize (lottery, KBC, cashback) | 0.45 |
+| gift_card | 0.55 | | new_number_family ("Hi Mum, new number") | 0.45 |
+| legal_threat (arrest, warrant) | 0.40 | | secrecy / money_request / urgency | 0.30 / 0.20 / 0.15 |
+
+`node trustgraph_extension/test/rules.test.js` runs 27 scam and 25 benign
+fixtures (student chat, dev chat about OTP flows and deploys, a genuine bank
+alert, …) and prints precision and recall.
+
+**Please review:** the Malayalam, Manglish and Hinglish vocabulary and fixtures
+were written without a native speaker. Add real (anonymised) examples to
+`test/rules.test.js` and adjust `rules.js` until they pass.
+
+Before this rewrite, `shared/basic-check.js` had 7 English regex categories
+(gift card, one-time code, remote access, crypto, secrecy, threat, upfront
+fee) plus an urgency modifier: 0 hits Low, 1 hit Caution, 2+ hits (or a
+severe hit with urgency) High, so a single keyword could reach High.
+
 ## QA checklist (before a demo or a store upload)
 
 Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add) so
@@ -105,7 +152,7 @@ nothing is left over from development.
 | 10 | OS dark mode and "reduce motion" on | Card, popup, and pages readable; no animation | all |
 | 11 | Settings → Clear local data | Counts back to 0, settings back to defaults | popup |
 
-Automated checks: `node trustgraph_extension/test/basic-check.test.js` and
+Automated checks: `node trustgraph_extension/test/rules.test.js` and
 `test/adapter-tests.html` (see Tests above).
 
 ## Build the Web Store package

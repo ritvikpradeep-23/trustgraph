@@ -127,7 +127,8 @@
 
     /* ---- footer ---- */
     .foot { flex: none; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--bg); }
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn[aria-expanded="true"] { background: var(--surface); border-color: var(--muted); }
     .btn {
       min-height: 36px; padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
       border: 1px solid var(--line); background: var(--bg); color: var(--text); font-weight: 600; font-size: 13px;
@@ -594,16 +595,30 @@
     return sec;
   }
 
+  // "How this was decided": the score and every contribution to it, so
+  // the verdict is fully explained.
   function whyBlock(s) {
     const items = [];
-    if (s.source === "basic") items.push("Checked with the basic check on this device: known scam phrases, with negation (“we will never ask for your OTP” doesn't count).");
-    else items.push("Checked by the TrustGraph server's four signals, plus the on-device scam rules.");
-    if (s.mode === "chat") items.push(`Your own messages aren't scored; ${plural(s.coverage.scored || 0, "message from others was", "messages from others were")} checked.`);
-    items.push("The verdict is the highest risk found in any single message or run of messages.");
+    if (typeof s.score === "number") {
+      items.push(`Risk score ${Math.round(s.score * 100)} out of 100 (Caution from 35, High from 70).`);
+    }
+    for (const c of s.contributions || []) {
+      if (c.effect) items.push(`${c.label}: ${c.effect} the score`);
+      else items.push(`${c.label}: +${Math.round(c.weight * 100)}`);
+    }
+    if ((s.weakSignals || []).length) items.push(`Weak signs (context only, not red flags): ${s.weakSignals.join(", ").toLowerCase()}.`);
+    const how =
+      s.source === "basic"
+        ? "Checked on this device with TrustGraph's scam rules (English, Malayalam, Manglish, Hinglish), including negation such as “we will never ask for your OTP”."
+        : "Checked by the TrustGraph server's four signals and the on-device scam rules; the higher verdict wins.";
+    const extra = [];
+    if (s.mode === "chat") extra.push(`Your own messages aren't scored; ${plural(s.coverage.scored || 0, "message from others was", "messages from others were")} checked, alone and as runs from the same sender.`);
     return el("section", { class: "sec why", id: "tg-why", "aria-labelledby": "tg-why-h" }, [
       el("h3", { id: "tg-why-h", text: "How this was decided" }),
+      el("p", { text: how }),
       s.explanation ? el("p", { text: s.explanation }) : null,
-      el("ul", null, items.map((t) => el("li", { text: t }))),
+      items.length ? el("ul", null, items.map((t) => el("li", { text: t }))) : null,
+      extra.length ? el("p", { text: extra.join(" "), style: "margin-top:8px" }) : null,
     ]);
   }
 
@@ -630,7 +645,8 @@
           class: "btn",
           type: "button",
           "data-key": "why",
-          text: whyOpen ? "Hide why" : "Why?",
+          text: "Why?", // pressed state shown by aria-expanded + style
+          title: whyOpen ? "Hide the explanation" : "Show how this was decided",
           "aria-expanded": String(whyOpen),
           "aria-controls": "tg-why",
           onclick: () => {
@@ -712,6 +728,9 @@
         flags: flagsFromResult(result, { snippet: snippet(context.text), sender: context.sender }),
         signals: result.signals || [],
         explanation: result.explanation || "",
+        score: typeof result.score === "number" ? result.score : null,
+        contributions: result.contributions || [],
+        weakSignals: result.weakSignals || [],
       },
       context
     );

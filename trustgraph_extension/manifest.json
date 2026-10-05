@@ -49,6 +49,9 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
         "adapters/kit.js",
         "adapters/whatsapp/reader.js",
         "adapters/whatsapp/adapter.js",
@@ -63,6 +66,9 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
         "adapters/kit.js",
         "adapters/gmail.js",
         "content/chat-store.js",
@@ -76,6 +82,9 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
         "adapters/kit.js",
         "adapters/meta-chat.js",
         "adapters/messenger.js",
@@ -90,6 +99,9 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
         "adapters/kit.js",
         "adapters/meta-chat.js",
         "adapters/instagram.js",
@@ -104,6 +116,9 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/rules/normalize.js",
+        "shared/rules/rules.js",
+        "shared/rules/engine.js",
         "adapters/kit.js",
         "adapters/stub.js",
         "content/chat-store.js",

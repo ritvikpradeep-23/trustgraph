@@ -249,7 +249,8 @@
     Panel.showChecking({}, layoutOpts());
     const context = { text, sender, onRetry: () => checkSingle(text, sender) };
     try {
-      const result = await send({ type: TG.MSG.SCORE, text, channel: adapter.channel });
+      // The sender lets the rules weigh an unsaved number; it isn't stored.
+      const result = await send({ type: TG.MSG.SCORE, text, channel: adapter.channel, sender });
       Panel.showSingle(result, context, layoutOpts());
     } catch (_) {
       Panel.showSingle({ error: "TrustGraph was updated or reloaded. Refresh this page and try again." }, {}, layoutOpts());
@@ -284,8 +285,9 @@
     if (!adapter || !adapter.read) return;
     stopScan();
     const current = {
-      results: new Map(),
-      server: null,
+      results: new Map(), // id -> merged result (on-device rules + server)
+      serverCache: new Map(), // id -> server answer, or null if none
+      server: null, // "server" | "offline" | "error" once known
       counted: false,
       busy: false,
       again: false,
@@ -300,6 +302,8 @@
         if (info.chatSwitched) {
           // A different chat: start its verdict from scratch.
           current.results.clear();
+          current.serverCache.clear();
+          current.server = null;
           current.counted = false;
           current.report = { state: "idle", count: 0 };
           current.earlier = { running: false, label: "", reachedTop: false };
@@ -322,17 +326,45 @@
     scan = null;
   }
 
-  // Messages worth scoring: text from other people (your own messages
-  // aren't checked), most recent first up to MAX_SCAN_MESSAGES.
+  // Messages worth scoring, with the context the rules use: text from
+  // other people (your own messages aren't checked), the most recent
+  // MAX_SCAN_MESSAGES. For each: how many earlier messages this sender has
+  // in the chat, and whether it continues a run from the same sender
+  // (within 5 minutes, no reply in between).
   function candidates(s) {
-    return s.store
-      .messages()
-      .filter((m) => m.type === "text" && m.text && m.direction !== "outgoing")
-      .slice(-TG.MAX_SCAN_MESSAGES);
+    const counts = {};
+    const items = [];
+    let prev = null;
+    for (const m of s.store.messages()) {
+      if (m.type === "date" || m.type === "system") {
+        prev = null;
+        continue;
+      }
+      const key = m.direction === "outgoing" ? "\u0000me" : m.sender || "\u0000them";
+      const history = counts[key] || 0;
+      counts[key] = history + 1;
+      const sameRun = !!prev && prev.key === key && (!(m.timestamp && prev.ts) || m.timestamp - prev.ts <= 5 * 60 * 1000);
+      if (m.type === "text" && m.text && m.direction !== "outgoing") {
+        items.push({
+          id: m.id,
+          // Emails: include the subject so subject-line scams count.
+          text: m.subject ? `Subject: ${m.subject}\n${m.text}` : m.text,
+          sender: m.sender,
+          timestamp: m.timestamp,
+          links: (m.links || []).map((l) => l.href),
+          senderHistory: history,
+          prevSameSender: sameRun,
+          inChat: true,
+        });
+      }
+      prev = { key, ts: m.timestamp };
+    }
+    return items.slice(-TG.MAX_SCAN_MESSAGES);
   }
 
-  // Scores only messages we haven't scored yet; re-entrant calls queue one
-  // more pass instead of overlapping.
+  // One pass: the on-device rules over the whole conversation (instant, in
+  // this page), then the server for messages it hasn't seen yet. Re-entrant
+  // calls queue one more pass instead of overlapping.
   async function scoreNew() {
     const s = scan;
     if (!s) return;
@@ -344,19 +376,23 @@
     try {
       do {
         s.again = false;
-        const todo = candidates(s).filter((m) => !s.results.has(m.id));
-        if (todo.length) {
-          const out = await send({
-            type: TG.MSG.SCORE_BATCH,
-            // Emails: include the subject so subject-line scams count.
-            items: todo.map((m) => ({ id: m.id, text: m.subject ? `Subject: ${m.subject}\n${m.text}` : m.text })),
-            channel: adapter.channel,
-            count: !s.counted, // the first pass of a scan counts as one check
-          });
+        const items = candidates(s);
+        const local = TrustGraphEngine.analyzeChat(items);
+        // Ask the server only about new messages, and not again once it's
+        // known to be down (Retry clears that).
+        const ask = s.server === "offline" ? [] : items.filter((it) => !s.serverCache.has(it.id));
+        if (ask.length) {
+          const out = await send({ type: TG.MSG.SCORE_SERVER, items: ask.map((it) => ({ id: it.id, text: it.text })), channel: adapter.channel });
           if (scan !== s) return; // closed or restarted meanwhile
-          s.counted = true;
-          for (const [id, r] of Object.entries(out.results || {})) s.results.set(id, r);
+          for (const it of ask) s.serverCache.set(it.id, (out.results || {})[it.id] || null);
           s.server = out.server;
+        }
+        s.results = new Map(items.map((it) => [it.id, TrustGraphEngine.combine(local[it.id], s.serverCache.get(it.id) || null, s.server || "offline")]));
+        if (!s.counted && s.store.readCount()) {
+          // A chat scan counts as one check (counts only, no text).
+          s.counted = true;
+          const worst = [...s.results.values()].reduce((w, r) => (RANK[r.band] > RANK[w] ? r.band : w), "Low");
+          send({ type: TG.MSG.RECORD_CHECK, channel: adapter.channel, band: worst }).catch(() => {});
         }
         renderScan("result");
       } while (s.again && scan === s);
@@ -372,23 +408,42 @@
     const s = scan;
     if (!s) return;
     const messages = s.store.messages();
+    const byId = new Map(messages.map((m) => [m.id, m]));
     const read = s.store.readCount();
-    const scored = messages.filter((m) => s.results.has(m.id));
     let band = "Low";
     let top = null;
     let anyBasic = false;
     const flags = [];
-    for (const m of scored) {
-      const r = s.results.get(m.id);
+    const seen = new Set();
+    for (const [id, r] of s.results) {
       if (r.source !== "server") anyBasic = true;
-      if (!top || RANK[r.band] > RANK[top.band]) top = r;
+      if (!top || r.score > top.score) top = r;
       if (RANK[r.band] > RANK[band]) band = r.band;
-      flags.push(...Panel.flagsFromResult(r, { messageId: m.id, sender: m.sender, timeText: m.timeText, snippet: Panel.snippet(m.text) }));
+      for (const f of r.flags || []) {
+        // A flag points at the message its evidence came from (a run of
+        // messages can put flags on earlier bubbles).
+        const mid = f.messageId || id;
+        const key = `${f.ruleId}|${mid}|${f.evidence ? f.evidence.start : ""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const m = byId.get(mid) || {};
+        flags.push({
+          key: mid + "-" + f.ruleId,
+          title: f.title,
+          reason: f.reason,
+          evidence: f.evidence ? f.evidence.text : Panel.snippet(m.text),
+          severity: f.severity,
+          sender: m.sender || null,
+          timeText: m.timeText || "",
+          messageId: mid,
+        });
+      }
     }
     const SEV = { high: 0, medium: 1, low: 2 };
     flags.sort((a, b) => (SEV[a.severity] ?? 1) - (SEV[b.severity] ?? 1));
-    const serverResult = scored.map((m) => s.results.get(m.id)).find((r) => r.source === "server");
-    const source = scored.length ? (anyBasic ? "basic" : "server") : s.server && s.server !== "server" ? "basic" : "server";
+    const serverResult = [...s.results.values()].find((r) => r.source === "server");
+    const scoredCount = s.results.size;
+    const source = scoredCount ? (anyBasic ? "basic" : "server") : s.server && s.server !== "server" ? "basic" : "server";
     const earlierLabel = s.earlier.reachedTop ? " (from the start of the chat)" : "";
 
     if (status === "result" && read === 0) status = "nothing";
@@ -397,12 +452,15 @@
       mode: "chat",
       status,
       band,
-      coverage: { read, scored: scored.length, label: `Read ${read} ${read === 1 ? "message" : "messages"} from this chat${earlierLabel}` },
+      coverage: { read, scored: scoredCount, label: `Read ${read} ${read === 1 ? "message" : "messages"} from this chat${earlierLabel}` },
       source,
       server: s.server || "server",
       flags,
       signals: (top && top.source === "server" ? top : serverResult || {}).signals || [],
       explanation: top ? top.explanation : "",
+      score: top ? top.score : null,
+      contributions: top ? top.contributions : [],
+      weakSignals: [...new Set([...s.results.values()].flatMap((r) => r.weakSignals || []))],
       notice: s.notice,
       scanEarlier: {
         available: !!(adapter.scroller && safe(() => adapter.scroller(), null)) && !s.earlier.reachedTop,
@@ -414,8 +472,8 @@
       on: {
         close: () => stopScan(),
         retry: () => {
-          // Try the full analysis again for everything checked offline.
-          for (const [id, r] of s.results) if (r.source !== "server") s.results.delete(id);
+          // Try the server again for everything it hasn't answered.
+          for (const [id, r] of s.serverCache) if (!r) s.serverCache.delete(id);
           s.server = null;
           renderScan("scanning");
           scoreNew();
