@@ -6,7 +6,7 @@ TrustGraph
 
 ## Short description (132 characters max)
 
-Not sure about a message? Check it for scam signals in one click on WhatsApp Web, Gmail, Messenger, Instagram, or any site.
+Not sure about a message? Check it for scam signals in one click. Only the verdict is kept; your messages never are.
 
 ## Category
 
@@ -22,48 +22,48 @@ Not sure about a message? TrustGraph checks it for common scam signals and
 tells you why, in plain words.
 
 HOW IT WORKS
-• On WhatsApp Web, Gmail, Facebook Messenger or Instagram DMs, click the
-  TrustGraph button to check the conversation you have open. A side panel
-  shows the result next to the chat without covering it.
-• To check one message, hover it and click the small shield.
+• Hover a message on Gmail, WhatsApp Web, LinkedIn, Telegram, Discord,
+  Slack, Messenger or Instagram and click the small shield. Or click the
+  round TrustGraph button to check the whole conversation you have open.
 • On any other site, select the text, right-click, and choose
   "Check with TrustGraph".
-• You get a clear result (Low risk, Caution, or High risk) that says how
-  many messages were read, lists each red flag with the words that matched,
-  and can jump to the message in the chat.
+• A side panel shows the verdict (Low risk, Caution or High risk), a 0–100
+  score, a plain explanation, and each signal with the words that matched.
+  It sits next to the chat without covering it.
 
 WHAT IT LOOKS FOR
-Requests for OTPs, PINs or passwords; "enter your UPI PIN to receive money";
-lookalike bank links and short links; KYC, PAN or Aadhaar "account blocked"
-messages; fake courier, customs, police and "digital arrest" calls;
-electricity disconnection threats; lottery and KBC prizes; part-time task
-jobs and registration fees; guaranteed-return investments and crypto;
-"Hi Mum, this is my new number"; remote-access apps; gift cards; blackmail;
-and pressure to act fast or keep it secret. Works in English, Malayalam,
-Manglish and Hinglish, and explains every flag with the words that matched.
+Urgency pressure; requests for money, gift cards or crypto; requests for
+OTPs, PINs or passwords; suspicious and lookalike links; sender mismatches;
+impersonation of family, banks, police or brands; a conversation that
+suddenly changes purpose; and messages shaped like known scams. That
+includes "enter your UPI PIN to receive money", KYC/PAN/Aadhaar "account
+blocked", fake courier and "digital arrest" calls, electricity disconnection
+threats, lottery prizes, task jobs, guaranteed-return investments and "Hi
+Mum, this is my new number". Works in English, Malayalam, Manglish,
+Hinglish and Hindi.
 
 TRUSTGRAPH ONLY WARNS
 TrustGraph only flags and explains. It never hides, deletes, or changes
 messages, and it never contacts anyone on your behalf.
 
-PRIVATE BY DESIGN
-• Nothing is read until you click: the TrustGraph button reads the open
-  conversation; the shield or right-click reads one message.
-• Messages are checked only by the TrustGraph server you choose (your own
-  computer by default), or on your device if it isn't running. Your own
-  messages aren't sent.
-• No message text is stored. Only your settings and daily counts stay on
-  your device.
+ONLY THE VERDICT COMES HOME
+• Nothing is read until you click.
+• Your history keeps the verdict, score, signal types, site and time.
+  Never the message text.
+• No scam reports or public submission database.
+• Export (JSON / CSV) or delete your history anytime.
+• Use it without an account, or sign in to sync verdicts to your
+  TrustGraph workspace. The extension never sees your password.
 • No analytics, no ads, no selling of data.
 
 GOOD TO KNOW
-• The full analysis needs the TrustGraph server running (by default on your
-  own computer at http://127.0.0.1:8000). Without it, TrustGraph falls back
-  to a simpler on-device "Basic check" and labels results that way.
-• Gmail, Messenger, and Instagram support is experimental: these sites
-  change often. Right-click checking works everywhere.
-• TrustGraph can't catch every scam, and a "Low" result is not a guarantee.
-  When in doubt, contact the person or company another way.
+• Checks run on your device, or on your TrustGraph scoring server if you
+  have one (by default on your own computer at http://127.0.0.1:8000).
+• LinkedIn, Telegram, Discord, Slack, Gmail, Messenger and Instagram support
+  is experimental: these sites change often. Right-click checking works
+  everywhere.
+• TrustGraph can't catch every scam, and a "Low risk" result is not a
+  guarantee. When in doubt, contact the person or company another way.
 
 ## Wording rules (keep claims honest)
 
@@ -74,12 +74,12 @@ GOOD TO KNOW
 
 ## Screenshots to capture (1280×800, PNG)
 
-1. A WhatsApp Web test chat with the side panel showing "High risk" and the
-   red flags list (gift card + one-time code).
-2. The same chat in dark mode with the signal meters (server running).
-3. Right-click "Check with TrustGraph" on a normal web page.
-4. The toolbar popup (status, counts, "Recognizing N messages").
-5. The onboarding page.
+1. A test chat with the side panel showing "High risk", the score ring and
+   the signals list.
+2. The toolbar popup Overview (demo data on: Settings → History → Demo data).
+3. The popup History tab with one result expanded.
+4. Right-click "Check with TrustGraph" on a normal web page.
+5. The welcome page (privacy promise step).
 
 Use test chats and fake messages only: no real names, numbers, or emails.
 
@@ -89,24 +89,24 @@ Use test chats and fake messages only: no real names, numbers, or emails.
 
 ## Notes for the reviewer (paste into "Additional notes" / test instructions)
 
-TrustGraph checks a message the user chooses for scam signals. The full
-analysis uses a server the user runs locally, which you won't have. Without
-it the extension automatically uses its built-in offline "Basic check", so
-everything below works with no server and no account:
+TrustGraph checks a message the user chooses for scam signals. Everything
+below works with no server and no account:
 
-1. Install the extension. The onboarding page opens. Click "Check this
-   message" under "Try it". A card appears: "TrustGraph: likely scam", with
-   the label "Basic check (offline)".
-2. Open any web page (e.g. https://example.com), select some text, right-click,
-   and choose "Check with TrustGraph". A result card appears next to the
-   selection. To see a flag, select text such as: "Buy two Google Play gift
-   cards and send me the codes. It's urgent, don't tell anyone."
-3. Click "Why?" to see which red flags matched. Press Esc to dismiss.
-4. Click the toolbar icon to see today's counts and status ("Server not
-   running" is expected without the local server).
+1. Install the extension. The welcome page opens. Click through the tour to
+   "Get started" and click "Check this message". The side panel shows
+   "High risk" with a score and its signals ("Server offline · on-device
+   rules only" is expected: the optional scoring server runs on the user's
+   own computer).
+2. Open any web page (e.g. https://example.com), select text such as: "Buy
+   two Google Play gift cards and send me the codes. It's urgent, don't tell
+   anyone.", right-click, and choose "Check with TrustGraph".
+3. Click the toolbar icon, choose "Use without account", then Settings →
+   History → Demo data to fill Overview and History with sample verdicts.
+4. "Sign in" opens a built-in demo web app that issues a one-time pairing
+   code; no password is ever entered in the extension.
 
-The shield button on WhatsApp Web / Gmail / facebook.com/messages /
-instagram.com/direct needs a logged-in account; it reads a message only when
-clicked. The extension makes no network requests except to the user's
-configured TrustGraph server (default http://127.0.0.1:8000). There is no
-remote code, no analytics, and no message text is stored.
+The shield on the supported chat sites needs a logged-in account; it reads a
+message only when clicked. The extension makes no network requests except to
+the user's configured scoring server (default http://127.0.0.1:8000) and,
+if the user signs in, the configured web app. There is no remote code, no
+analytics, and no message text is stored.

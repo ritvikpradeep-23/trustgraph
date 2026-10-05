@@ -1,14 +1,19 @@
 # TrustGraph Chrome extension
 
-Checks messages you choose for scam signals. On a supported chat site, click
-the round TrustGraph button to scan the open conversation: a side panel
-docks on the right (narrowing the page instead of covering it) with the
-verdict, each red flag and "Jump to message". Or hover one message and click
-the shield, or select text anywhere and right-click **Check with
-TrustGraph**. It flags and warns; it never hides, deletes, or blocks
-anything.
+Checks the messages you choose for scam signals, right where they are.
+**Only the verdict comes home. The message stays where it was detected.**
 
-Manifest V3, plain JavaScript, no build step.
+Hover a message on a supported site and click the shield, click the round
+TrustGraph button to scan the open chat, or select text anywhere and
+right-click **Check with TrustGraph**. A side panel docks on the right
+(narrowing the page instead of covering it) with the verdict, a 0-100 score,
+the signals and the words that matched. It flags and warns; it never hides,
+deletes or blocks anything.
+
+Manifest V3, plain JavaScript, **no build step**. Styles and components come
+from one design system (`shared/design.js`, `shared/ui.js`) matched to the
+TrustGraph web app: dark tokens, Space Grotesk / DM Sans / JetBrains Mono
+(bundled, never fetched), Lucide icons.
 
 ## Load it in Chrome (Load unpacked)
 
@@ -17,61 +22,131 @@ Manifest V3, plain JavaScript, no build step.
 3. After changing any file, click the reload arrow on the TrustGraph card.
    Content scripts only update after you also reload the web page.
 
-## The scoring backend
+The welcome page opens on first install (`ui/options.html#welcome`). To look
+around without real checks: toolbar icon → **Use without account** →
+Settings → History → **Demo data**.
 
-The full analysis comes from the TrustGraph Python server (default
-`http://127.0.0.1:8000`, changeable in Settings). If it isn't running, the
-extension uses only its on-device scam rules (`shared/rules/`) and labels
-the result "basic check only". The on-device rules run either way: they
-name each red flag and quote the evidence; the server adds its four
-signals and can raise the verdict.
+## Surfaces
 
-No backend in this repo yet? Use the dev mock (standard library only):
+| Surface | Files |
+| --- | --- |
+| Shield, side panel, launcher (in-page, closed shadow roots) | `content/core.js`, `content/panel.js`, `content/chat-store.js` |
+| Toolbar popup (400px): signed-out pitch, Overview, History, Settings | `ui/popup.*`, `ui/settings-form.js` |
+| Welcome tour + full settings (split layout) | `ui/options.*` |
+| Privacy policy | `ui/privacy.*` (keep in sync with `store/privacy-policy.md`) |
+| Demo web app (used while no web app URL is set) | `ui/webapp.*` |
+| Component gallery, every component in Low / Caution / High, both themes | `dev/gallery.html` (not shipped) |
+
+## Architecture
+
+```
+content script ──typed messages (TG.MSG)──▶ background.js (service worker)
+  shield / panel                              ├─ engine: LocalEngine | RemoteEngine   shared/verdict.js
+  text in memory only                         ├─ history: Result records only         shared/result.js
+                                              ├─ counts per verdict and site
+popup / options ──typed messages──────────▶   └─ ApiClient: web app | mock           shared/api-client.js
+```
+
+- **Verdict** (`shared/verdict.js`): `scoreMessage(input) -> Verdict
+  {id, riskLevel: "low"|"caution"|"high", score 0-100, explanation, signals,
+  continuity, similarity}`. Every rule maps to one of eight signal types:
+  urgency pressure; request for money, gift cards or crypto; credential or
+  OTP request; suspicious link or lookalike domain; sender mismatch;
+  impersonation of a contact or brand; unusual continuity break; similarity
+  to known scam patterns. Thresholds: Caution from 35, High from 70
+  (Balanced); Relaxed 45 / 80, Strict 25 / 60.
+- **Result** (`shared/result.js`): the only thing stored or synced: `id,
+  timestamp, riskLevel, score, signalIds, channel, domain, hash?`. No text
+  field; `validate()` rejects anything else, and `test/result.test.js` fails
+  if a field is added.
+- **ApiClient** (`shared/api-client.js`): `POST /api/results`, `GET
+  /api/results`, `DELETE /api/results/:id`, `GET /api/export`, `POST
+  /api/feedback` (Mark as wrong verdict: the verdict id only), `POST
+  /api/extension/pair`. With no web app URL in Settings it uses a mock in
+  `chrome.storage.local`, which the demo web app page reads too.
+- **Auth**: Sign in / Create account open the web app's login or register
+  page; the web app shows a one-time pairing code that you paste into the
+  popup (the demo web app also has a "Connect this browser" button that
+  messages the extension directly). The extension stores only the token it
+  gets back and never handles a password.
+
+## How to swap engines
+
+Settings → Engine and web app → **Scoring engine**:
+
+- **On-device**: `LocalEngine`, the rules in `shared/rules/`. Works offline;
+  text never leaves the browser.
+- **Remote** (default): `RemoteEngine` POSTs `{message_text, channel}` to
+  `<Scoring server URL>/api/score` (default `http://127.0.0.1:8000`) with a
+  3 s timeout and one quiet retry. It accepts either
+
+  ```json
+  {"riskLevel": "high", "score": 86, "explanation": "...", "signals": [{"name": "similarity", "score": 0.9}]}
+  {"band": "High", "score": 0.86, "explanation": "...", "signals": [...]}
+  ```
+
+  The on-device rules still run; the higher verdict wins. If the server is
+  down or errors, the on-device verdict is shown with "Server offline ·
+  on-device rules only".
+
+To plug in a different engine, give it the same shape (`scoreMessage(input,
+{sensitivity}) -> Promise<Verdict>`, see `LocalEngine` in
+`shared/verdict.js`) and return it from `engineFor()` in `background.js`.
+
+Dev mock of the scoring server (standard library only):
 
 ```bash
-python3 trustgraph_extension/scripts/mock_server.py          # only /api/score, like the real server today
-python3 trustgraph_extension/scripts/mock_server.py --all    # also /api/settings, /api/status, /api/report
+python3 trustgraph_extension/scripts/mock_server.py              # old {band, score 0..1} answers
+python3 trustgraph_extension/scripts/mock_server.py --new-shape  # {riskLevel, score 0-100} answers
+python3 trustgraph_extension/scripts/mock_server.py --fail       # HTTP 500 (error path)
+python3 trustgraph_extension/scripts/mock_server.py --all        # also /api/settings and /api/status
 ```
+
+## Tests
+
+```bash
+node trustgraph_extension/test/rules.test.js       # scam rules: 52 fixtures + engine checks
+node trustgraph_extension/test/verdict.test.js     # engine interface, signal mapping, chat verdicts
+node trustgraph_extension/test/result.test.js      # privacy: Result has no text field, nothing leaks
+node trustgraph_extension/test/background.test.js  # service worker flows against a fake chrome API
+node trustgraph_extension/test/tokens.test.js      # tokens match the spec; contrast on every chip
+cd trustgraph_extension && python3 -m http.server 5500       # then open:
+#   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
+#   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
+#   http://localhost:5500/test/reader-tests.html   WhatsApp reader
+#   http://localhost:5500/dev/gallery.html         component gallery
+python3 trustgraph_extension/scripts/build_zip.py
+```
+
+**Checking message reading on the live site:** open a chat, click the
+TrustGraph toolbar icon, and read the line under "This page": `Rows 36 ·
+message containers 16 · parsed 16`. *parsed* should equal *message
+containers*. With Debug mode on, the same counts are logged to the page
+console (never message text).
 
 ## Where to look when something breaks
 
 | What | Where |
 | --- | --- |
-| Background / backend calls | `chrome://extensions` → TrustGraph → **service worker** link → Console |
-| Shield button, adapters, verdict card | The web page's DevTools Console (messages start with `[TrustGraph]`) |
+| Background / server / web app calls | `chrome://extensions` → TrustGraph → **service worker** link → Console |
+| Shield, adapters, panel | The web page's DevTools Console (messages start with `[TrustGraph]`) |
 | Load errors | `chrome://extensions` → TrustGraph → **Errors** button |
-
-## Tests
-
-```bash
-node trustgraph_extension/test/rules.test.js      # scam rules: 52 fixtures + engine checks
-cd trustgraph_extension && python3 -m http.server 5500       # serve the extension folder, then open:
-#   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
-#   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
-#   http://localhost:5500/test/reader-tests.html   WhatsApp reader: parsing, every message
-#                                                  type, virtualised scrolling, chat switch
-```
-
-**Checking message reading on the live site:** open a WhatsApp chat, click
-the TrustGraph toolbar icon, and read the grey line under "Recognizing N
-messages": `Rows 36 · message containers 16 · parsed 16`. *parsed* should
-equal *message containers*; anything skipped is listed with the reason.
-With Debug mode on, the same counts are logged to the page console (never
-message text).
-
-**Debug mode** (Settings → Debug) outlines every element the current site's
-adapter recognizes as a message and logs which selector strategy matched.
-Use it to calibrate an adapter after a site changes its HTML.
 
 ## Site adapters: status and calibration
 
 | Site | Adapter | Status |
 | --- | --- | --- |
-| WhatsApp Web | `adapters/whatsapp/adapter.js` + `reader.js` | Rebuilt from live-site observations (Oct 2026); confirm with the popup counts |
-| Gmail | `adapters/gmail.js` | Hint-based, **not verified** (experimental) |
-| Facebook Messenger (facebook.com/messages) | `adapters/messenger.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |
-| Instagram DMs | `adapters/instagram.js` + `meta-chat.js` | Hint-based, **not verified** (experimental) |
-| Any other site | right-click menu | Works anywhere text can be selected |
+| WhatsApp Web | `adapters/whatsapp/adapter.js` + `reader.js` | Rebuilt from live-site observations (Oct 2026) |
+| Gmail | `adapters/gmail.js` | Hint-based, **not verified** |
+| LinkedIn messaging, Telegram Web (K and A), Discord, Slack | `adapters/sites.js` (selector configs) + `adapters/config.js` | Hint-based, **not verified** |
+| Facebook Messenger, Instagram DMs | `adapters/messenger.js`, `instagram.js` + `meta-chat.js` | Hint-based, **not verified** |
+| Any other https site | `adapters/generic.js`, registered only after Settings → Sites → **Any other site** grants the optional all-sites permission | Single messages (any block of text) |
+| Anywhere | right-click menu, popup "Check current selection" | Works wherever text can be selected |
+
+Adding a chat site is a config entry in `adapters/sites.js` (row, body,
+sender, time and pane selectors; see the comment in `adapters/config.js`),
+its URL in `manifest.json` `content_scripts`, a fixture and an entry in
+`test/fixtures/expected.json`.
 
 The `*.synthetic.html` fixtures are hand-written from selector hints. They prove
 the adapter code works on that structure, **not** that the live site still
@@ -128,32 +203,29 @@ alert, …) and prints precision and recall.
 were written without a native speaker. Add real (anonymised) examples to
 `test/rules.test.js` and adjust `rules.js` until they pass.
 
-Before this rewrite, `shared/basic-check.js` had 7 English regex categories
-(gift card, one-time code, remote access, crypto, secrecy, threat, upfront
-fee) plus an urgency modifier: 0 hits Low, 1 hit Caution, 2+ hits (or a
-severe hit with urgency) High, so a single keyword could reach High.
 
 ## QA checklist (before a demo or a store upload)
 
-Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add) so
-nothing is left over from development.
+Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 
-| # | Test | Expect | Where to look |
-| --- | --- | --- | --- |
-| 1 | Load unpacked (or unzip `dist/…zip` and load that) | No **Errors** button; onboarding opens | chrome://extensions |
-| 2 | Onboarding → **Check this message** | "likely scam" card, "Basic check (offline)" label | page |
-| 3 | Select text on any site → right-click **Check with TrustGraph** | Card next to the selection | page; service-worker console |
-| 4 | Same, with `mock_server.py` running | "[mock server]" explanation, no offline label | mock server terminal |
-| 5 | `mock_server.py --fail`, check again | "server returned an error … (HTTP 500)" label; popup says **Basic check mode** | page; popup |
-| 6 | Service worker asleep: chrome://serviceworker-internals → TrustGraph → **Stop**, then check again | Still works (worker restarts) | service-worker console |
-| 7 | Each live site with a test chat: hover → shield → click | Card anchored to the message; popup says "Recognizing N messages" | page console (`[TrustGraph]` lines) |
-| 8 | Popup → Pause | Shield disappears; right-click still works | page |
-| 9 | Keyboard only: Tab to the card buttons, Enter on **Why?**, Esc | Visible focus rings; Esc closes and focus returns | page |
-| 10 | OS dark mode and "reduce motion" on | Card, popup, and pages readable; no animation | all |
-| 11 | Settings → Clear local data | Counts back to 0, settings back to defaults | popup |
-
-Automated checks: `node trustgraph_extension/test/rules.test.js` and
-`test/adapter-tests.html` (see Tests above).
+| # | Test | Expect |
+| --- | --- | --- |
+| 1 | Load unpacked (or the `dist/` zip) | No **Errors** button; the welcome page opens |
+| 2 | Welcome → Next ×3 → Get started → **Check this message** | Panel: High risk, score ring, 3-4 signals, "Server offline · on-device rules only"; no Save / Mark wrong (it's a sample) |
+| 3 | Popup → **Use without account** | Status chip "Local only"; Overview / History / Settings tabs; arrow keys move between tabs |
+| 4 | Settings → History → **Demo data** on | Overview tiles, sparkline and channel bars fill; History lists 42 results; banner "Showing demo data" |
+| 5 | History: search "gmail", filter High, open a result | Signals listed; Open in workspace opens the demo web app; Mark as wrong shows "Marked as wrong verdict" |
+| 6 | Export JSON and CSV | Files contain only id, timestamp, riskLevel, score, signalIds, channel, domain |
+| 7 | **Delete all history** | Confirmation dialog, focus on Cancel; after Delete all, the empty state |
+| 8 | Test chat (`test/test-chat.html`): hover the gift-card bubble, click the shield | Pulsing ring, then the panel; the page narrows instead of being covered |
+| 9 | In the panel: switch **Save to history** off | The result disappears from History; Open in workspace greys out |
+| 10 | Click the round button (launcher) | Chat verdict "Across the N messages…", signals with "Jump to message", Continuity and similarity |
+| 11 | Select text on any site → right-click **Check with TrustGraph** | Panel overlays the page |
+| 12 | Popup → **Sign in** → demo web app → **Connect this browser** | Status chip "Signed in"; new checks appear in the demo web app |
+| 13 | `mock_server.py` (then `--new-shape`, then `--fail`) and check again | "TrustGraph server + on-device rules"; with --fail, "Server error · on-device rules only" |
+| 14 | Settings: Sensitivity Strict, Shield position Top left, Theme Light, Auto-scan | Thresholds and copy change; shield moves; light theme everywhere; auto-scan shows only the rail, opening for High |
+| 15 | Settings → **Notify me on high risk** | Chrome asks for the notifications permission; a High check notifies with the site only |
+| 16 | Keyboard only, OS reduced motion | Visible focus rings (primary blue); Esc closes the panel and focus returns; no animation |
 
 ## Build the Web Store package
 
@@ -164,20 +236,23 @@ python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.1.0.z
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
-`store/`, `scripts/`, and `adapters/stub.js`. It stops if the manifest
-references a missing file or any script uses `eval`. Store copy, privacy policy,
-permission justifications, and data disclosures are in `store/`.
+`store/`, `scripts/`, `dev/` and `adapters/stub.js`. It stops if the
+manifest references a missing file or any script uses `eval`. Store copy,
+privacy policy, permission justifications and data disclosures are in
+`store/`.
 
 ## Layout
 
 ```
-background.js        service worker: the only code that calls the backend
-content/             core.js (shield, hover, heartbeat) and popup.js (verdict card)
-adapters/            one file per site + kit.js (shared helpers, adapter contract)
-shared/              constants, Basic check, design tokens
-ui/                  toolbar popup, options, onboarding, privacy pages
-icons/               extension icons
-test/                test chat page, fixtures, tests (not shipped)
+background.js        service worker: engines, history, counts, account, every network call
+content/             core.js (shield, chat scan), panel.js (side panel, launcher), chat-store.js
+adapters/            one file per site, config.js + sites.js (selector configs), generic.js, kit.js
+shared/              constants, design.js + ui.js + icons.js (design system), verdict.js,
+                     result.js, api-client.js, demo-data.js, rules/ (on-device engine)
+ui/                  popup, welcome + settings, settings form, privacy, demo web app
+fonts/               Space Grotesk, DM Sans, JetBrains Mono (SIL OFL, see fonts/OFL.txt)
+dev/                 component gallery (not shipped)
+test/                tests and fixtures (not shipped)
 store/               Web Store listing, privacy policy, justifications (not shipped)
 scripts/             mock server, icon + zip builders (not shipped)
 ```

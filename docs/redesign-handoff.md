@@ -48,46 +48,32 @@ if you need the exact token values and screen list.
    configurable web app URL in Settings, and pairing-code sign-in that works
    against the mock. Never handle a password.
 
-## Planned steps (step 1 is half done)
+## Status (5 October 2026, second session)
 
-1. **Design system:** shared tokens, `@font-face` for the bundled fonts, icons,
-   and a `dev/` gallery page showing every component in Low / Caution / High
-   (excluded from the zip).
-2. **Toolbar popup (400px):**
-   - status chip and settings gear
-   - signed-out pitch with Sign in / Create account / Use without account
-   - Overview: verdict tiles, 7-day sparkline, channel bars, "Check current
-     selection"
-   - History: filters, search, details, delete, export JSON/CSV, delete all
-     with confirm, empty/loading/error states
-   - Settings
-3. **In-page UI** in the new design:
-   - shield button with a pulsing scan ring
-   - restyled panel and launcher
-   - Gmail first, then config-driven selectors for WhatsApp, Messenger,
-     Instagram, LinkedIn, Telegram, Discord and Slack
-   - a generic fallback for any text block, registered with
-     `chrome.scripting.registerContentScripts` only after the user grants the
-     optional "all sites" permission
-4. **Engine interface:** `scoreMessage(input) -> Verdict {riskLevel:
-   "low"|"caution"|"high", score 0-100, explanation, signals}` with
-   `LocalEngine` (the existing rules) and `RemoteEngine` (configurable URL,
-   also accepting the old `{band, score 0..1}` shape), selected in Settings.
-   Map rule ids to the eight signal types in the prompt.
-5. **Privacy in code:** a `Result` record with a fixed whitelist (id, timestamp,
-   riskLevel, score, signalIds, channel, domain, optional salted hash) and a
-   node unit test that fails if any text-like field is added.
-6. **Settings, history, account and pages:**
-   - Settings: sites, click-to-scan vs auto-scan (auto-scan off by default;
-     when on it only opens the collapsed rail, and expands for High), shield
-     position, sensitivity Relaxed / Balanced / Strict, high-risk
-     notifications (optional `notifications` permission, requested on
-     toggle), retention 7/30/90/forever, account, theme (dark default)
-   - history retention, export and delete
-   - Welcome/Options page in a split layout: "Read the signal. Keep the
-     trust.", a 3-step onboarding and the privacy promise screen
-7. **Wrap-up:** README with how to swap engines and a QA checklist, then a
-   screenshot of each surface compared against the tokens.
+All seven planned steps are done and pushed on `claude/awesome-hawking-fzvsex`:
+
+1. Design system: `shared/design.js` (tokens, fonts, component CSS),
+   `shared/ui.js` (components), `dev/gallery.html`.
+2. Toolbar popup: `ui/popup.*`, `ui/settings-form.js`.
+3. In-page UI: `content/panel.js`, `content/core.js`; LinkedIn, Telegram,
+   Discord and Slack via `adapters/config.js` + `adapters/sites.js`;
+   `adapters/generic.js` behind the optional all-sites permission.
+4. Engine interface: `shared/verdict.js` (LocalEngine, RemoteEngine, the
+   eight signal types, `aggregate()` for chats).
+5. Privacy: `shared/result.js` + `test/result.test.js`.
+6. Settings, history, account: `background.js`, `shared/api-client.js`
+   (mock web app when no URL is set), `shared/demo-data.js`,
+   `ui/options.*` (welcome tour + settings), `ui/webapp.*` (demo web app),
+   `ui/privacy.*`.
+7. README (engines, QA checklist), store docs, screenshots in
+   `docs/screenshots/`, `test/tokens.test.js` (tokens + contrast).
+
+Open items for the owner:
+- The new site adapters (LinkedIn, Telegram, Discord, Slack) and Gmail,
+  Messenger, Instagram are hint-based: calibrate each with a real sample.
+- A real web app needs the endpoints in `TG.WEBAPP` (shared/constants.js)
+  and a pairing-code flow; set its URL in Settings.
+- `[CONTACT EMAIL]` in the privacy policy.
 
 ## Rules to keep
 

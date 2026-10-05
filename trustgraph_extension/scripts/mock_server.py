@@ -4,11 +4,12 @@ The real backend (src/trustgraph/web/server.py) isn't in this repo yet, so
 this lets you test the extension's "server is up" path.
 
     python3 trustgraph_extension/scripts/mock_server.py          # only /api/score
-    python3 trustgraph_extension/scripts/mock_server.py --all    # also settings/status/report
+    python3 trustgraph_extension/scripts/mock_server.py --all    # also /api/settings and /api/status
     python3 trustgraph_extension/scripts/mock_server.py --fail   # /api/score returns HTTP 500
+    python3 trustgraph_extension/scripts/mock_server.py --new-shape  # answer {riskLevel, score 0-100, ...}
 
 By default only POST /api/score exists, like the real server today, so the
-extension's "not available yet" paths (report, settings, heartbeat) get a 404.
+extension's optional paths (settings, heartbeat) get a 404.
 With --all those endpoints answer too, so you can test their success paths.
 
 Scores are canned answers from a few keywords. They are NOT the real engine.
@@ -26,6 +27,7 @@ CAUTION_WORDS = re.compile(r"urgent|fee|prize|suspend|password|crypto|won\b", re
 
 ALL_ENDPOINTS = False
 FAIL_SCORE = False
+NEW_SHAPE = False
 SLOW = 0.0
 
 
@@ -39,6 +41,14 @@ def score(text):
     else:
         band, value = "Low", 0.12
         why = "Nothing unusual found."
+    if NEW_SHAPE:
+        # The extension's Verdict shape (shared/verdict.js RemoteEngine).
+        return {
+            "riskLevel": band.lower(),
+            "score": round(value * 100),
+            "explanation": "[mock server] " + why,
+            "signals": [{"name": "similarity", "score": value, "explanation": "Similar to known scams (mock)."}],
+        }
     return {
         "band": band,
         "score": value,
@@ -73,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
             html = b"<!doctype html><title>TrustGraph mock</title><h1>TrustGraph mock server</h1><p>Dashboard placeholder.</p>"
             return self._send(200, html, "text/html; charset=utf-8")
         if self.path == "/api/settings" and ALL_ENDPOINTS:
-            return self._send(200, {"minutes_per_check": 3})
+            return self._send(200, {"sensitivity": "balanced"})
         self._send(404, {"detail": "Not Found"})
 
     def do_POST(self):
@@ -91,9 +101,6 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/status" and ALL_ENDPOINTS:
             print(f"  heartbeat source={data.get('source')!r}")
             return self._send(200, {"ok": True})
-        if self.path == "/api/report" and ALL_ENDPOINTS:
-            print(f"  report chars={len(str(data.get('message_text', '')))}")
-            return self._send(200, {"ok": True})
         self._send(404, {"detail": "Not Found"})
 
     def log_message(self, fmt, *args):
@@ -101,9 +108,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global ALL_ENDPOINTS, FAIL_SCORE, SLOW
+    global ALL_ENDPOINTS, FAIL_SCORE, SLOW, NEW_SHAPE
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--all", action="store_true", help="also serve /api/settings, /api/status, /api/report")
+    parser.add_argument("--all", action="store_true", help="also serve /api/settings and /api/status")
+    parser.add_argument("--new-shape", action="store_true", help="answer {riskLevel, score 0-100} instead of {band, score 0..1}")
     parser.add_argument("--fail", action="store_true", help="answer /api/score with HTTP 500 (tests the error path)")
     parser.add_argument("--slow", type=float, default=0, metavar="SECONDS", help="delay each /api/score answer (to see the scanning state)")
     parser.add_argument("--port", type=int, default=8000)
@@ -111,8 +119,9 @@ def main():
     ALL_ENDPOINTS = args.all
     FAIL_SCORE = args.fail
     SLOW = args.slow
+    NEW_SHAPE = args.new_shape
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    extras = "score, settings, status, report" if ALL_ENDPOINTS else "score only"
+    extras = "score, settings, status" if ALL_ENDPOINTS else "score only"
     print(f"Mock TrustGraph server on http://127.0.0.1:{args.port} ({extras}). Ctrl+C to stop.")
     try:
         server.serve_forever()

@@ -6,68 +6,72 @@ _Last updated: 5 October 2026_
      into the Chrome Web Store dashboard. Keep it in sync with
      trustgraph_extension/ui/privacy.html, the copy shipped inside the extension. -->
 
+**Only the verdict comes home. The message stays where it was detected.**
+
 TrustGraph is a browser extension that checks a message you choose for signs
-of a scam. This policy explains what it does with your data. In short: it
-reads only what you ask it to check, sends it only to the server you choose,
-and stores no message text.
+of a scam. It reads only what you ask it to check, and it never stores, syncs
+or logs message text.
+
+- No message text in detection history.
+- No scam reports or public submission database.
+- Delete or export your data anytime.
 
 ## What TrustGraph reads, and when
 
-TrustGraph reads nothing until you click one of its controls:
-
-- **The TrustGraph button** next to a chat on WhatsApp Web, Gmail, Facebook
-  Messenger or Instagram reads the messages of the conversation you have
-  open that are already loaded on the page. It reads older messages only if
-  you click **Scan earlier messages**, and it keeps reading new messages in
-  that conversation only while its side panel is open.
-- **The shield** next to a single message, or **Check with TrustGraph** in
-  the right-click menu, reads just that message or the text you selected.
-- It does not read your other conversations, contacts, or browsing history,
-  and does nothing when you only hover or scroll. On the four supported
-  sites its script is present so it can show its buttons, but it reads no
-  content until you click.
+- **The shield** on a single message, **Check with TrustGraph** in the
+  right-click menu, or **Check current selection** in the toolbar popup reads
+  just that message or the text you selected.
+- **The round TrustGraph button** next to a chat reads the messages of the
+  conversation you have open that are already loaded on the page, and keeps
+  reading new ones only while its panel is open. It reads older messages only
+  if you click **Scan earlier messages**.
+- **Auto-scan** (off unless you switch it on in Settings) reads the open chat
+  on supported sites the same way, without a click.
+- It never checks your own messages, and does nothing when you only hover or
+  scroll. It does not read your other conversations, contacts or browsing
+  history.
 
 ## Where the text goes
 
-- Messages from other people in the conversation (not your own) are sent to
-  the TrustGraph server address in Settings to be checked. By default this
-  is `http://127.0.0.1:8000`, which is your own computer.
-- If that server can't be reached, messages are checked on your device by
-  the built-in Basic check and are not sent anywhere.
-- If you change the server address to another server, the text you check is
-  sent to that server, under that server operator's own policies.
-- While the side panel is open, the messages it read are kept only in the
-  page's memory, so it can show evidence and "Jump to message". They are
-  forgotten when you close the panel, switch conversations, or leave the
-  page. They are never saved to disk or logged.
-
-## Reporting a scam
-
-If you click **Report as scam** and then confirm, the message text is sent to
-your configured server's shared scam database so similar messages can be
-flagged. Nothing is reported unless you confirm.
+- With the **on-device** engine, the text never leaves your browser.
+- With the **remote** engine (the default), the text is sent to the
+  TrustGraph scoring server address in Settings, by default
+  `http://127.0.0.1:8000` on your own computer. If you set a different server,
+  that server operator's policies apply. If it can't be reached, the
+  on-device rules are used and nothing is sent.
+- The text lives only in memory for the length of the check (and, for a
+  chat, while its panel is open, so it can quote evidence and "Jump to
+  message"). It is never written to disk, synced or logged.
 
 ## What TrustGraph stores
 
-- Your settings (for example, which sites are on and the server address).
-- Daily counts: how many messages you checked and how many were flagged, per
-  site. These are numbers only.
-- TrustGraph never stores message text, sender names, or addresses.
-  Everything it stores stays in your browser on this device.
+- **History** (if "Save to history" is on): for each check, a random id, the
+  time, the verdict, the 0–100 score, the signal types (for example
+  "urgency"), the site (for example "Gmail"), the website's host name, and an
+  optional salted hash used only to avoid duplicates. No message text, no
+  sender, no explanation.
+- **Counts**: how many checks were Low, Caution or High each day, per site.
+- **Settings**, and whether you're signed in.
+- History is kept for 7, 30 or 90 days, or until you delete it (your choice
+  in Settings).
+
+## Your TrustGraph workspace
+
+If you sign in, the same history records (never text) are synced to the
+TrustGraph web app. You sign in on the web app itself; the extension never
+sees your password. "Mark as wrong verdict" sends only the verdict's id.
 
 ## What TrustGraph doesn't do
 
-- No analytics, tracking, or advertising.
-- No selling, renting, or sharing of your data with anyone.
-- No use of your data for anything other than checking the messages you
-  choose.
+- No scam reports or public submission database: nothing you check is shared.
+- No analytics, tracking or advertising, and no selling or sharing of data.
 - No remote code: all of TrustGraph's code ships inside the extension.
 
-## Deleting your data
+## Export and delete
 
-Open TrustGraph's Settings and click **Clear local data**, or remove the
-extension from Chrome. Either one deletes everything TrustGraph stored in
-your browser.
+In the toolbar popup's History tab you can export everything as JSON or CSV,
+delete one result, or delete all history. Removing the extension deletes
+everything it stored in your browser.
 
 ## Contact
 

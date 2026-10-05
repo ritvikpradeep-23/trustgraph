@@ -41,6 +41,7 @@
     "--caution-line": "rgba(255,185,56,.25)",
     "--high-line": "rgba(255,84,104,.25)",
     "--on-primary": "#FFFFFF",
+    "--chip-base": "#020611", // chips paint their tint over this, so contrast never depends on the card below
     "--grid-dot": "rgba(157,187,255,.09)",
     "--shadow": "0 18px 48px rgba(2,6,17,.55)",
   };
@@ -71,6 +72,7 @@
     "--caution-line": "rgba(143,90,0,.30)",
     "--high-line": "rgba(199,36,58,.30)",
     "--on-primary": "#FFFFFF",
+    "--chip-base": "#FFFFFF",
     "--grid-dot": "rgba(37,82,200,.08)",
     "--shadow": "0 18px 48px rgba(10,19,48,.16)",
   };
@@ -186,7 +188,7 @@
 
     /* verdict chip: tint + border + colour + icon + word (never colour alone) */
     .tg-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 999px; font-weight: 600; font-size: 12.5px; line-height: 1.2;
-      color: var(--c, var(--text-muted)); background: var(--cb, var(--surface-2)); border: 1px solid var(--cl, var(--border)); white-space: nowrap; }
+      color: var(--c, var(--text-muted)); background: linear-gradient(var(--cb, var(--surface-2)), var(--cb, var(--surface-2))), var(--chip-base); border: 1px solid var(--cl, var(--border)); white-space: nowrap; }
     .tg-chip svg { width: 14px; height: 14px; flex: none; }
     .tg-chip.small { font-size: 11.5px; padding: 2px 8px 2px 6px; }
     .tg-chip.small svg { width: 12px; height: 12px; }
