@@ -377,7 +377,7 @@
     if (s.status === "nothing")
       return [el("div", { class: "sec" }, [U.empty({ icon: "messageCircle", title: "Nothing to read here yet", text: s.mode === "single" ? "This message has no text (it may be an image, sticker or voice note)." : "Open a conversation, then scan again.", action: s.mode === "chat" && s.on.retry ? U.button("Scan again", { small: true, icon: "refresh", key: "retry", onclick: s.on.retry }) : null })])];
     if (s.status === "error")
-      return [el("div", { class: "sec" }, [U.empty({ kind: "error", title: "Couldn't finish the check", text: s.errorText || "Something went wrong. Try again.", action: s.on.retry ? U.button("Try again", { small: true, icon: "refresh", key: "retry", onclick: s.on.retry }) : null })])];
+      return [el("div", { class: "sec" }, [U.empty({ kind: "error", title: "Couldn't finish the check", text: s.errorText || "TrustGraph didn't get an answer. Reload TrustGraph in chrome://extensions, refresh this page, and try again.", action: s.on.retry ? U.button("Try again", { small: true, icon: "refresh", key: "retry", onclick: s.on.retry }) : null })])];
     return [verdictBlock(s), signalsBlock(s), continuityBlock(s), whyBlock(s)];
   }
 
@@ -553,7 +553,7 @@
     const v = response && response.verdict;
     if (!response || response.error || !v) return render(baseSingle({ status: "error", errorText: response && response.error }, context));
     if (v.empty) return render(baseSingle({ status: "nothing" }, context));
-    render(baseSingle({ status: "result", verdict: v, record: response.record || null, saved: !!response.saved, wrong: false }, context));
+    render(baseSingle({ status: "result", verdict: v, record: response.record || null, saved: !!response.saved, wrong: false, notice: context.notice || "" }, context));
   }
 
   function baseSingle(partial, context) {
