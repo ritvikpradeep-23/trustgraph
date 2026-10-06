@@ -292,7 +292,7 @@
     const match = top ? { band: matchBand, score: inBand(matchBand, top.similarity) } : null;
     if (!model && !match) return { none: true, database };
     const best = !model ? match : !match || LEVEL_RANK[model.band.toLowerCase()] >= LEVEL_RANK[match.band.toLowerCase()] ? model : match;
-    const matchText = top ? `Matches ${database.matches === 1 ? "a scam" : database.matches + " scams"} reported to TrustGraph before (${Math.round(top.similarity * 100)}% similar).` : "";
+    const matchText = top ? ["synthetic_demo", "synthetic_dataset"].includes(top.status) ? `Matches a synthetic ${top.status === "synthetic_dataset" ? "ScamShield dataset" : "demo"} scam pattern (${Math.round(top.similarity * 100)}% text similarity; not fraud probability).` : `Matches ${database.matches === 1 ? "a scam" : database.matches + " scams"} reported to TrustGraph before (${Math.round(top.similarity * 100)}% similar).` : "";
     const reasons = model && Array.isArray(data.reasons) ? data.reasons.filter((r) => typeof r === "string").join(" ") : "";
     const signals = top ? [{ name: "precedent", score: top.similarity, explanation: matchText }, { name: "similarity", score: top.similarity, explanation: matchText }] : [];
     return { band: best.band, score: best.score, explanation: best === match ? matchText : reasons || matchText, signals, database };

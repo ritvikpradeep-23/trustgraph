@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.4";
+  TG.VERSION = "0.2.5";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -29,7 +29,7 @@
     theme: "dark", // "dark" | "light"
     engine: "remote", // "remote" = TrustGraph server at backend_url (local rules as fallback) | "local" = on-device only
     backend_url: "http://127.0.0.1:8000", // the scoring engine (TrustGraph Python server)
-    webapp_url: "", // the TrustGraph web app; empty = the built-in mock
+    webapp_url: "", // the TrustGraph web app; empty = the TrustGraph server's workspace (or the built-in demo when on-device only)
     demo_data: false,
     debug: false,
   };
@@ -51,10 +51,10 @@
     result: "/api/results/", // DELETE /api/results/:id
     export: "/api/export", // GET -> Result[]
     feedback: "/api/feedback", // POST {resultId}  ("Mark as wrong verdict")
-    pair: "/api/extension/pair", // POST {code} -> {token, account: {name}}
-    login: "/login?source=extension",
-    register: "/register?source=extension",
-    resultPage: "/results/", // + id: "Open in workspace"
+    pair: "/api/extension/pair", // POST {code} -> {token, account: {name}}; the code comes from the workspace's Settings
+    login: "/app/settings?source=extension", // the workspace's Settings page shows the pairing code
+    register: "/app/settings?source=extension",
+    resultPage: "/app/detections/", // + id: "Open in workspace"
   };
 
   TG.TIMEOUT_SCORE_MS = 3000; // short: we fall back to the on-device check quietly

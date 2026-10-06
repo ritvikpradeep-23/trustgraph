@@ -226,7 +226,7 @@
       return group("Engine and web app", [
         row("Scoring engine", engineNote, U.segmented("engine", [["remote", "Remote"], ["local", "On-device"]], settings.engine, (v) => save({ engine: v }).then(refreshStatus), "Scoring engine")),
         settings.engine === "remote" ? urlField("backend_url", "Scoring server URL", "http://127.0.0.1 or localhost (any port), or any https:// address.", { testable: true }) : null,
-        urlField("webapp_url", "Web app URL", "Where History syncs and “Open in workspace” goes. Leave empty to use the built-in demo web app.", { allowEmpty: true, placeholder: "Built-in demo web app" }),
+        urlField("webapp_url", "Web app URL", "Where History syncs and “Open in workspace” goes. Leave empty to use the TrustGraph server's workspace (the built-in demo when checks are on-device only).", { allowEmpty: true, placeholder: "Same as the TrustGraph server" }),
         row("Debug mode", "Outlines recognised messages and logs counts (never text) to the page console.", U.switchInput("set-debug", settings.debug, (e) => save({ debug: e.target.checked })), "set-debug"),
       ]);
     }

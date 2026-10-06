@@ -70,6 +70,9 @@ const check = (ok, name) => {
   const model = V.normalizeRemote(detect([], { risk_level: "HIGH", risk_score: 0.9, reasons: ["model says so"] }).data);
   check(model.band === "High" && model.score >= 0.7, "a connected model's verdict is used once it has a score");
   check(V.normalizeRemote(detect([]).data).none === true, "pending model + no match = nothing to add");
+  const synthetic = [{ report_id: "rep_demo", submission_id: "sub_demo", report_type: "ScamShield: Fake KYC", status: "synthetic_dataset", similarity_score: .92 }];
+  const demo = await V.RemoteEngine("u", fake(detect(synthetic))).scoreMessage({ text: calmText, channel: "whatsapp" });
+  check(/synthetic ScamShield dataset/.test(demo.similarity.text) && !/reported to TrustGraph/.test(demo.similarity.text), "ScamShield sample is labeled synthetic, not a real user report");
 
   // Whole chat: worst message wins, signals pooled, continuity from metadata.
   const E = require("../shared/rules/engine.js");

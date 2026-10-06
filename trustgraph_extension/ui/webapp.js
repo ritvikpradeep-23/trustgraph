@@ -11,7 +11,9 @@
 
   async function route() {
     const path = location.hash.replace(/^#/, "").split("?")[0];
-    if (path.startsWith("/results/")) return showResult(decodeURIComponent(path.slice("/results/".length)));
+    // Same paths as the real workspace (/app/detections/<id>); /results/<id> from older versions.
+    const page = ["/app/detections/", "/results/"].find((p) => path.startsWith(p));
+    if (page) return showResult(decodeURIComponent(path.slice(page.length)));
     return showAuth(path.startsWith("/register") ? "register" : "login");
   }
 
@@ -50,7 +52,7 @@
       { class: "list" },
       results.slice(0, 30).map((x) =>
         el("li", null, [
-          el("a", { href: "#/results/" + encodeURIComponent(x.id), "aria-current": x.id === id ? "page" : null, "data-level": x.riskLevel }, [
+          el("a", { href: "#/app/detections/" + encodeURIComponent(x.id), "aria-current": x.id === id ? "page" : null, "data-level": x.riskLevel }, [
             U.chip(x.riskLevel, { small: true, short: true }),
             el("span", { text: `${TG.CHANNEL_LABELS[x.channel] || x.channel} · ${U.timeAgo(x.timestamp)}` }),
             el("span", { class: "s", text: String(x.score) }),

@@ -402,9 +402,16 @@ async function getAccountRaw() {
   return account && account.state ? account : { state: "signed_out" };
 }
 
+// The web workspace: Settings → Web app URL, else the TrustGraph server
+// itself (it serves the React workspace and its API on one address), else
+// (on-device only) the built-in demo web app.
+function workspaceUrl(settings) {
+  return settings.webapp_url || (settings.engine === "remote" ? settings.backend_url : "");
+}
+
 async function apiClient() {
   const [settings, account] = await Promise.all([readSettings(), getAccountRaw()]);
-  return Api.create({ webappUrl: settings.webapp_url, token: account.state === "signed_in" ? account.token : null });
+  return Api.create({ webappUrl: workspaceUrl(settings), token: account.state === "signed_in" ? account.token : null });
 }
 
 // Fire-and-forget sync of one change; failures leave the local copy as is.
@@ -429,7 +436,7 @@ async function getAccount() {
       online = false;
     }
   }
-  return { state: account.state, name: account.name || null, since: account.since || null, online, mock: !settings.webapp_url };
+  return { state: account.state, name: account.name || null, since: account.since || null, online, mock: !workspaceUrl(settings) };
 }
 
 async function pair(code) {

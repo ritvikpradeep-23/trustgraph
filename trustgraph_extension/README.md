@@ -62,13 +62,19 @@ popup / options ──typed messages──────────▶   └─ A
 - **ApiClient** (`shared/api-client.js`): `POST /api/results`, `GET
   /api/results`, `DELETE /api/results/:id`, `GET /api/export`, `POST
   /api/feedback` (Mark as wrong verdict: the verdict id only), `POST
-  /api/extension/pair`. With no web app URL in Settings it uses a mock in
-  `chrome.storage.local`, which the demo web app page reads too.
-- **Auth**: Sign in / Create account open the web app's login or register
-  page; the web app shows a one-time pairing code that you paste into the
-  popup (the demo web app also has a "Connect this browser" button that
-  messages the extension directly). The extension stores only the token it
-  gets back and never handles a password.
+  /api/extension/pair`. These are implemented by the TrustGraph backend
+  (`backend/app/api/extension_sync.py`), which also serves the React
+  workspace, so with no web app URL in Settings the extension uses its
+  TrustGraph server as the workspace. Only with Settings → Engine on
+  "on-device only" does it fall back to the mock in `chrome.storage.local`,
+  which the demo web app page reads too.
+- **Pairing**: in the workspace, **Settings → New code** shows a one-time
+  code (10 minutes); enter it in the popup under "Have a pairing code?"
+  (Sign in opens that Settings page). The extension stores only the token
+  it gets back and never handles a password. Paired, each saved verdict
+  appears in the workspace's history, the dashboard shows the extension's
+  status from its heartbeat, and "Open in workspace" opens
+  `/app/detections/<id>`. Test: `test/workspace-e2e.js`.
 
 ## How to swap engines
 
@@ -326,7 +332,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.4.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.5.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
