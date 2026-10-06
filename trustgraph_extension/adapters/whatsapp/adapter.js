@@ -66,6 +66,23 @@
       return container ? reader.readOne(container) : null;
     },
 
+    // WhatsApp shows long messages cut short with a "Read more" button; the
+    // rest isn't in the page until it's clicked. Called only when the user
+    // clicks the shield, so the whole message is checked, not just the start.
+    // Resolves true if anything was expanded.
+    async expand(el) {
+      const container = el.matches("[data-id]") ? el : el.querySelector("[data-id]") || el;
+      let expanded = false;
+      for (let round = 0; round < 3; round++) {
+        const more = reader.readMoreButton(container);
+        if (!more) break;
+        more.click();
+        expanded = true;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return expanded;
+    },
+
     extractText(el) {
       const rec = adapter.record(el);
       if (rec) return kit.clean(rec.text);

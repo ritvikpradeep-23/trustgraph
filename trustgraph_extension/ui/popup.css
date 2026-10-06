@@ -2,6 +2,9 @@
 html, body { margin: 0; }
 body { width: 400px; min-height: 480px; max-height: 600px; background: var(--bg); overflow: hidden; }
 .app { display: flex; flex-direction: column; height: 600px; max-height: 600px; }
+/* popped out into its own window: fill it */
+.popout body { width: auto; min-height: 0; max-height: none; height: 100vh; }
+.popout .app { height: 100vh; max-height: none; }
 
 /* header */
 .top { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px 16px; }

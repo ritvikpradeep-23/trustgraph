@@ -600,8 +600,9 @@ async function onContextMenuClick(info, tab) {
   await checkInTab(tab, info.selectionText || "", info.frameId);
 }
 
-async function checkSelection() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+async function checkSelection(tabId) {
+  // The popped-out popup names its tab; the toolbar popup uses the active one.
+  const tab = tabId ? await chrome.tabs.get(tabId).catch(() => null) : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
   if (!tab || !/^https?:/.test(tab.url || "")) return { error: "TrustGraph can't run on this page." };
   let text = "";
   try {
@@ -691,7 +692,7 @@ async function handleMessage(msg, sender) {
       await chrome.storage.local.set({ account: { state: "signed_out" } });
       return { ok: true };
     case TG.MSG.CHECK_SELECTION:
-      return checkSelection();
+      return checkSelection(msg.tabId);
     case TG.MSG.GET_SETTINGS:
       return getSettings();
     case TG.MSG.SET_SETTINGS:

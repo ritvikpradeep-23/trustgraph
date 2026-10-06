@@ -355,12 +355,23 @@
   }
 
   shieldButton.addEventListener("mousedown", (event) => event.preventDefault()); // don't steal the site's focus/selection
-  shieldButton.addEventListener("click", (event) => {
+  shieldButton.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
     if (inFlight || !currentMessage || !adapter) return;
     const message = currentMessage;
     const viaFallback = fallbackEls.has(message);
+    // The whole message: open a collapsed long one ("Read more") before reading it.
+    if (!viaFallback && adapter.expand) {
+      inFlight = true;
+      try {
+        await adapter.expand(message);
+      } catch (_) {
+        // read what is there
+      } finally {
+        inFlight = false;
+      }
+    }
     const record = !viaFallback && adapter.record ? safe(() => adapter.record(message), null) : null;
     const extract = () => (viaFallback ? TrustGraphKit.text(message, "time, button, [aria-hidden='true']") : adapter.extractText(message));
     const text = TrustGraphKit.clean(record ? (record.subject ? `Subject: ${record.subject}\n` : "") + record.text : safe(extract, ""));

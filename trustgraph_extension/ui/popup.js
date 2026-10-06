@@ -8,6 +8,38 @@
   const { el } = U;
   const V = TrustGraphVerdict;
   const send = (msg) => chrome.runtime.sendMessage(msg);
+  // Popped out: the same view in its own window, which can be moved anywhere
+  // and stays open (Chrome pins the toolbar popup under its icon).
+  const POPPED_OUT = new URLSearchParams(location.search).has("window");
+  if (POPPED_OUT) document.documentElement.classList.add("popout");
+  const POPOUT_URL = chrome.runtime.getURL("ui/popup.html?window=1");
+
+  // The tab the user is looking at: from the pop-out window, the active tab
+  // of the last browser window they used.
+  async function activeTab() {
+    if (!POPPED_OUT) return (await chrome.tabs.query({ active: true, currentWindow: true }))[0] || null;
+    const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null);
+    return win ? (await chrome.tabs.query({ active: true, windowId: win.id }))[0] || null : null;
+  }
+
+  async function popOut() {
+    const { popout_window: id, popout_bounds: b } = await chrome.storage.local.get(["popout_window", "popout_bounds"]);
+    const open = id ? await chrome.windows.get(id).catch(() => null) : null;
+    if (open) {
+      await chrome.windows.update(open.id, { focused: true }); // already popped out: bring it forward
+    } else {
+      const win = await chrome.windows.create({ url: POPOUT_URL, type: "popup", width: 420, height: 680, ...(b ? { left: b.left, top: b.top, width: b.width, height: b.height } : {}) });
+      await chrome.storage.local.set({ popout_window: win.id });
+    }
+    window.close();
+  }
+  if (POPPED_OUT) {
+    // Opens where it was last left.
+    const remember = () => chrome.storage.local.set({ popout_bounds: { left: window.screenX, top: window.screenY, width: window.outerWidth, height: window.outerHeight } });
+    window.addEventListener("pagehide", remember);
+    window.addEventListener("resize", remember);
+    setInterval(remember, 2000); // moving a window fires no event
+  }
   // Pairing always ends with an answer, even if the background never replies.
   const pairWithin = (code) =>
     Promise.race([
@@ -40,6 +72,7 @@
       U.logo(),
       el("span", { class: "sp" }),
       statusChip(),
+      POPPED_OUT ? null : U.iconButton("externalLink", "Pop out: move TrustGraph anywhere", popOut, "popout"),
       U.iconButton("settings", "Settings", () => (account.state === "signed_out" ? chrome.runtime.openOptionsPage() : select("settings"))),
     ]);
   }
@@ -192,7 +225,7 @@
           onclick: async () => {
             selMsg.classList.remove("error");
             selMsg.textContent = "Checking…";
-            const res = await send({ type: TG.MSG.CHECK_SELECTION });
+            const res = await send({ type: TG.MSG.CHECK_SELECTION, tabId: ((await activeTab()) || {}).id });
             if (res && res.ok) return window.close(); // the panel opens on the page
             selMsg.textContent = (res && res.error) || "Couldn't check the selection.";
             selMsg.classList.add("error");
@@ -228,7 +261,7 @@
     let icon = "globe";
     let sampleTab = null;
     try {
-      const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const t = await activeTab();
       if (t && /^https?:/.test(t.url || "")) {
         let info = null;
         try {

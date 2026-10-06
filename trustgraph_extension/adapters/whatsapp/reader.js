@@ -118,11 +118,20 @@
     return button && container.contains(button) && button !== container ? button : q;
   }
 
+  // The "Read more" button WhatsApp puts on a long message (not one in a
+  // quoted reply), or null.
+  const READ_MORE = /^(read more|ഇനിയും വായിക്കുക)$/i;
+  function readMoreButton(container) {
+    const quote = quotedBlock(container);
+    return Array.from(container.querySelectorAll('.read-more-button, [role="button"], button')).find((b) => !(quote && quote.contains(b)) && READ_MORE.test((b.textContent || "").trim())) || null;
+  }
+
   // Body text: the selectable-text spans outside the quoted reply.
   function bodyText(container, quote) {
     const spans = Array.from(container.querySelectorAll("span.selectable-text")).filter((s) => !(quote && quote.contains(s)));
     const outer = spans.filter((s) => !spans.some((o) => o !== s && o.contains(s)));
-    return kit.cleanLines(outer.map((s) => kit.text(s, null, { lines: true })).join("\n"));
+    // A still-collapsed message ends in "… Read more": that label isn't part of the message.
+    return kit.cleanLines(outer.map((s) => kit.text(s, null, { lines: true })).join("\n")).replace(/\s*…?\s*(read more|ഇനിയും വായിക്കുക)$/i, "");
   }
 
   function mediaOf(container, quote) {
@@ -354,5 +363,5 @@
     return read(rootEl, opts).messages;
   }
 
-  root.TrustGraphWhatsAppReader = { read, readOne, readMessages, parsePrePlainText, parseDate, parseTime, inferDateOrder, chatPane, messageList };
+  root.TrustGraphWhatsAppReader = { read, readOne, readMoreButton, readMessages, parsePrePlainText, parseDate, parseTime, inferDateOrder, chatPane, messageList };
 })(globalThis);
