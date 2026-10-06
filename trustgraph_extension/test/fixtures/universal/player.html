@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- A video player like YouTube's: an overlay covers the whole video and
+     the controls sit at the bottom. Checks that the shield finds the video
+     under the overlay and that the player's own button still works. -->
+<meta charset="utf-8">
+<title>player</title>
+<style>
+  body { margin: 0; padding: 24px; font: 15px system-ui, sans-serif; }
+  .player { position: relative; width: 480px; height: 360px; background: #000; }
+  .player video { width: 100%; height: 100%; }
+  .chrome { position: absolute; inset: 0; }
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: rgba(0,0,0,.4); }
+  .bar button { margin: 6px; }
+</style>
+<div class="player">
+  <video id="v" src="http://cdn.other.test/known.webm" muted autoplay loop playsinline></video>
+  <div class="chrome"><div class="bar"><button id="pp" type="button">Pause</button></div></div>
+</div>
+<p id="clicks">0</p>
+<script src="/player.js"></script>

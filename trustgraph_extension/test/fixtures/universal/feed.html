@@ -1,0 +1,17 @@
+<!doctype html>
+<!-- A social feed: the photo sits UNDER a transparent overlay (as on
+     Instagram), and "navigation" swaps the content with pushState (SPA). -->
+<meta charset="utf-8">
+<title>feed</title>
+<style>
+  body { font: 15px system-ui, sans-serif; margin: 0; padding: 24px; }
+  .post { position: relative; width: 360px; }
+  .post img { display: block; width: 360px; height: 360px; }
+  .post .overlay { position: absolute; inset: 0; }
+</style>
+<nav><a href="/feed/next" id="next">Next post</a></nav>
+<main id="main">
+  <div class="post"><img id="photo" src="http://cdn.other.test/known.png"><div class="overlay"></div></div>
+  <p>Great day at the beach with everyone, thanks for coming along and bringing the snacks!</p>
+</main>
+<script src="/feed.js"></script>

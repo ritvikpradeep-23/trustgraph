@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- Embedded on news.test from another origin. #framed downloads fine;
+     #tainted is a canvas holding cross-origin pixels, which can't be read
+     or downloaded, so only the screenshot fallback (with this frame's
+     offset in the page) can capture it. -->
+<meta charset="utf-8">
+<style>body { margin: 12px; } img, canvas { display: block; margin-bottom: 12px; }</style>
+<p>Embedded post</p>
+<img id="framed" src="http://cdn.other.test/known.png" width="280" height="280">
+<canvas id="tainted" width="280" height="280"></canvas>
+<script>
+  const img = new Image();
+  img.onload = () => document.getElementById("tainted").getContext("2d").drawImage(img, 0, 0, 280, 280);
+  img.src = "http://cdn.other.test/known.png";
+</script>

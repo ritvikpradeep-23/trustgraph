@@ -22,7 +22,8 @@ importScripts(
   "shared/verdict.js",
   "shared/result.js",
   "shared/api-client.js",
-  "shared/demo-data.js"
+  "shared/demo-data.js",
+  "background-universal.js"
 );
 
 const Engine = self.TrustGraphEngine;
@@ -679,6 +680,16 @@ async function handleMessage(msg, sender) {
       return { ok: true };
     case TG.MSG.GET_STATUS:
       return getStatus();
+    case TG.MSG.UNIVERSAL_CHECK:
+      return Universal.check(msg, sender);
+    case TG.MSG.UNIVERSAL_FETCH:
+      return Universal.fetchImage(msg);
+    case TG.MSG.UNIVERSAL_CAPTURE:
+      return Universal.capture(msg, sender);
+    case TG.MSG.UNIVERSAL_CARD:
+      return Universal.showCard(msg, sender);
+    case TG.MSG.UNIVERSAL_HEALTH:
+      return Universal.health();
     case TG.MSG.CLEAR_DATA:
       await chrome.storage.local.clear();
       await syncGenericScript();

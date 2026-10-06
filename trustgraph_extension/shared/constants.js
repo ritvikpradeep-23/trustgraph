@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.2";
+  TG.VERSION = "0.2.3";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -102,6 +102,21 @@
     other: "Other sites",
   };
 
+  // Click-to-check on ANY website (content/universal.js): images, video,
+  // canvas, CSS background images and text blocks, found without site
+  // selectors. This ONE switch turns the whole new path off (false); the
+  // site adapters, panel and scoring are not affected either way.
+  TG.UNIVERSAL_CHECK = true;
+  TG.UNIVERSAL = {
+    minMedia: 120, // px: images/videos/canvases smaller than this (either side) get no shield
+    minText: 40, // characters: shorter text blocks get no shield
+    videoFrames: 8, // frames sampled from a video...
+    videoSeconds: 4, // ...over this many seconds (while it plays; it is never seeked)
+    maxSide: 640, // px: captured images are scaled down to this before sending
+    jpegQuality: 0.85,
+    timeoutMs: 30000, // the server may take a while to score frames on a CPU
+  };
+
   TG.SIGNAL_NAMES = ["continuity", "similarity", "precedent", "anomaly"]; // the Python server's four
 
   // Message types passed between content scripts, pages and the background.
@@ -134,6 +149,12 @@
     // toolbar popup -> content script
     SELF_TEST: "selfTest",
     CAPTURE_SAMPLE: "captureSample", // Debug mode: anonymised HTML of the chat area, for calibrating an adapter
+    // universal click-to-check (content/universal.js <-> background-universal.js)
+    UNIVERSAL_CHECK: "universalCheck", // {kind: "text"|"image"|"video", text | payload, capture}
+    UNIVERSAL_FETCH: "universalFetch", // {url}: an image downloaded by the background (no page CORS)
+    UNIVERSAL_CAPTURE: "universalCapture", // {rect, viewportWidth, dpr}: screenshot crop of the visible tab
+    UNIVERSAL_CARD: "universalCard", // a frame's result card, shown by the top frame ({desc} | {hide})
+    UNIVERSAL_HEALTH: "universalHealth", // extension -> backend -> database round trip
   };
 
   root.TG = TG;

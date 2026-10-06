@@ -139,6 +139,40 @@ should. This prints message text to the console, so turn it off again with
 (`FLAG_THRESHOLD`, `SCAN_MIN_CHARS`, `SCAN_MIN_WORDS`, `SCAN_OWN_MESSAGES`,
 `DEBUG_SCAN`) are in `shared/constants.js`.
 
+## Click-to-check on any website (`content/universal.js`)
+
+One shield on checkable content on **every** site and in every frame, with
+no site selectors: images, videos, canvases and CSS background images (at
+least 120×120 px), and text blocks (40+ characters) where no site adapter
+already handles the page. WhatsApp, Gmail and the other adapters keep their
+own text shields exactly as before. Switch the whole path off with
+`TG.UNIVERSAL_CHECK = false` in `shared/constants.js` (sizes, frame count and
+timings are in `TG.UNIVERSAL` next to it).
+
+- **Capture:** pixels are read directly when the page allows it (canvas or
+  fetch). When it doesn't (cross-origin images without CORS, `blob:` or
+  protected video), the background takes a screenshot of the tab and crops it
+  to the element (`background-universal.js`, `chrome.tabs.captureVisibleTab`).
+  Video: 8 frames over 4 seconds while it plays, with their timestamps.
+- **Server:** everything goes to the existing `POST /api/score` as
+  `{type, payload, hostname, timestamp}`. Text keeps its usual verdict.
+  Images and frames get the existing deepfake model's answer. Every answer
+  also has a separate `fingerprint: {db_match, similarity, matched_record_id}`
+  from the known-fakes database. Images and video need the server; with
+  Settings → Engine on "on-device only", nothing is sent.
+- **Database:** `python scripts/seed_fingerprints.py --demo` loads demo items;
+  add your own in `data/known_fakes/manifest.json`. `GET /health/fingerprint`
+  proves the backend → database round trip, and the background's
+  `Universal.health()` proves extension → backend → database.
+- **Debug:** `localStorage.setItem("trustgraph-debug-scan", "1")` in a page's
+  console logs what got a shield and each result's summary.
+- **Test:** `python tests/universal_e2e_server.py` is started by
+  `node test/universal-e2e.js` (needs Playwright). The per-site checklist is
+  `docs/site-compat-checklist.md` in the repository root.
+- **Privacy:** screenshots can contain private conversations, so they go only
+  to the backend URL in Settings, are decoded in memory there, and are never
+  stored. Only fingerprints of known fakes you seed are kept.
+
 ## Where to look when something breaks
 
 | What | Where |
@@ -282,7 +316,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.2.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.3.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
