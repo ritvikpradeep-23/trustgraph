@@ -298,6 +298,46 @@
         "https://slack.com/",
         "https://app.slack.com/"
       ]
+    },
+    {
+      "name": "Gmail: real-world email shapes",
+      "file": "gmail-shapes.synthetic.html",
+      "origin": "synthetic",
+      "channel": "gmail",
+      "scripts": [
+        "adapters/gmail.js"
+      ],
+      "count": 3,
+      "messages": [
+        {
+          "index": 0,
+          "text": "Subject: Action required on your account Dear customer, your account has been suspended due to unusual sign-in activity. Visit www.paypal.com to verify your identity.",
+          "sender": "security@paypa1-support.com",
+          "senderName": "PayPal Support",
+          "links": [
+            [
+              "https://paypal-restore.verify-now.top/login",
+              "www.paypal.com"
+            ]
+          ]
+        },
+        {
+          "index": 1,
+          "text": "Subject: Action required on your account Thanks, I will send the report by Friday.",
+          "sender": "ravi@company.example"
+        },
+        {
+          "index": 2,
+          "text": "Subject: Action required on your account See you at dinner on Sunday, bring the photos from the trip please.",
+          "sender": "mum@family.example"
+        }
+      ],
+      "matchUrls": [
+        "https://mail.google.com/mail/u/0/#inbox/FMfcgzQ"
+      ],
+      "noMatchUrls": [
+        "https://www.google.com/"
+      ]
     }
   ]
 }

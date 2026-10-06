@@ -78,6 +78,15 @@
       const text = adapter.extractText(msgEl);
       check(text === expected.text, `#${expected.index} extractText`, `expected ${JSON.stringify(expected.text)}\n     got      ${JSON.stringify(text)}`);
 
+      if ("senderName" in expected || "links" in expected) {
+        const rec = adapter.record ? adapter.record(msgEl) : null;
+        if ("senderName" in expected) check(!!rec && rec.senderName === expected.senderName, `#${expected.index} record().senderName`, `got ${JSON.stringify(rec && rec.senderName)}`);
+        if ("links" in expected) {
+          const got = rec ? rec.links.map((l) => [l.href, l.text]) : [];
+          check(JSON.stringify(got) === JSON.stringify(expected.links), `#${expected.index} record().links (href + visible text)`, `got ${JSON.stringify(got)}`);
+        }
+      }
+
       if ("sender" in expected) {
         const sender = adapter.sender(msgEl);
         check(sender === expected.sender, `#${expected.index} sender`, `expected ${JSON.stringify(expected.sender)}, got ${JSON.stringify(sender)}`);

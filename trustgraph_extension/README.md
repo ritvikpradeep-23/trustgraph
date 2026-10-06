@@ -170,7 +170,7 @@ conversation, then:
 | Platform | Where it works | Own messages |
 | --- | --- | --- |
 | WhatsApp Web | any chat | marked by WhatsApp, skipped |
-| Gmail | an open email thread (not the inbox list) | your own address, skipped |
+| Gmail | an open email thread (not the inbox list). Reads only what you can see: skips hidden preview text, quoted replies (Gmail, Outlook, "On … wrote:"), signatures and legal disclaimers. Also checks the sender's name against their address, and each link's visible text against where it really goes | your own address, skipped |
 | LinkedIn | /messaging and the chat pop-ups on any LinkedIn page | marked by LinkedIn, skipped |
 | Telegram Web | /k/ and /a/ chats | marked by Telegram, skipped |
 | Discord | channels and DMs | not marked: everything is checked |

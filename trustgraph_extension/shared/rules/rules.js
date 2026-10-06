@@ -295,6 +295,26 @@
       patterns: [P(String.raw`\b(?:this is my new number|my new number|changed my number|new number (?:aanu|hai)|ente puthiya number|mera naya number|ithu ente new number|lost my phone|phone (?:kedayi|poyi|kho gaya|toot gaya))\b|പുതിയ നമ്പർ|नया नंबर`)],
     },
     {
+      // The everyday email phish: "your account is suspended / there was an
+      // unusual sign-in / verify your identity / your mailbox is full",
+      // always with a link or button to fix it.
+      id: "account_phish",
+      title: "Says your account has a problem and asks you to verify it",
+      reason: "Real companies don't email you to 'verify your account' through a link. These messages lead to fake sign-in pages that steal your password.",
+      weight: 0.5,
+      kind: "rule",
+      devSensitive: true,
+      patterns: [
+        P(String.raw`\b(?:your |the )?(?:account|profile|mailbox|card|access)\b[^.!?\n]{0,25}\b(?:has been|have been|will be|is being|is|was|got)\b(?: temporarily| permanently)? (?:suspended|locked|limited|disabled|deactivated|restricted|on hold|blocked|frozen|closed|terminated|compromised)\b`),
+        P(String.raw`\b(?:unusual|suspicious|unauthori[sz]ed|unrecogni[sz]ed|strange) (?:sign[- ]?in|log[- ]?in|login|activity|access|attempt|transaction|device)s?\b`),
+        P(String.raw`\b(?:verify|confirm|validate|re-?validate|update|restore|reactivate|unlock|secure)\b (?:your |the )?(?:account|identity|details|information|info|credentials|password|email address|e-?mail|mailbox|login|payment (?:details|information|method)|billing (?:details|information|address)|card details)\b`),
+        P(String.raw`\b(?:your )?password (?:will )?(?:expire|expires|has expired|is expiring)\b`),
+        P(String.raw`\b(?:mailbox|storage|inbox|e-?mail quota|quota)\b[^.!?\n]{0,15}\b(?:is |has )?(?:almost |nearly )?(?:full|exceeded|over (?:the )?limit)\b`),
+        P(String.raw`\b(?:payment|card|transaction|subscription)\b (?:was |has been |is )?(?:declined|failed|unsuccessful|rejected)\b[^.!?\n]{0,60}\b(?:update|verify|click|confirm)\b`),
+        P(String.raw`\b(?:click|tap|follow)\b (?:here|below|the link|this link|on the (?:link|button))\b[^.!?\n]{0,40}\b(?:verify|confirm|restore|unlock|reactivate|avoid|sign in|log ?in|update|validate)\b`),
+      ],
+    },
+    {
       id: "remote_access",
       title: "Asks you to install a remote-access app",
       reason: "AnyDesk, TeamViewer and similar apps let a stranger control your phone, including your banking apps.",
@@ -436,6 +456,7 @@
     link_ip: { title: "Link goes to a bare IP address", reason: "Real banks and services don't send links to raw numeric addresses.", weight: 0.45 },
     link_shortener: { title: "Shortened link hides where it goes", reason: "Short links hide the real destination, so you can't see if it's genuine.", weight: 0.3 },
     link_risky_tld: { title: "Link uses an unusual domain ending", reason: "Cheap domain endings like .xyz or .top are common in scam links.", weight: 0.25 },
+    link_mismatch: { title: "Link shows one address but opens another", reason: "The link text shows a website address, but clicking it goes to a different site: a classic phishing trick.", weight: 0.55 },
   };
 
   // Is any part of the host a near-miss of a brand name? (one edit, or
@@ -483,7 +504,23 @@
     return { host, issues, safe: isSafe || (hosting && !brandy) };
   }
 
-  const api = { RULES, LINK_RULES, NEG_BEFORE, NEG_AFTER, DEV_CONTEXT, URL_IN_TEXT, classifyUrl };
+  // ---- Senders (email) -----------------------------------------------------
+  // Brands people impersonate by display name ("PayPal Support"). Generic
+  // words (bank, kyc, upi) are left out: a display name can say "XYZ Bank".
+  const NAME_BRANDS = ["paypal", "amazon", "netflix", "apple", "microsoft", "outlook", "office 365", "google", "gmail", "facebook", "instagram", "whatsapp", "linkedin", "discord", "steam", "telegram", "dhl", "fedex", "ups", "india post", "sbi", "hdfc", "icici", "axis bank", "kotak", "paytm", "phonepe", "flipkart", "irctc", "income tax", "uidai", "binance", "coinbase", "metamask"];
+  const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "yahoo.co.in", "rediffmail.com", "icloud.com", "aol.com", "proton.me", "protonmail.com", "gmx.com", "mail.com", "zoho.com"]);
+  // A link's visible text that is itself an address ("www.sbi.co.in").
+  const URL_TEXT = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,24}(?:[/?#]\S*)?$/i;
+  function hostOf(raw) {
+    try {
+      return new URL(/^https?:\/\//i.test(raw) ? raw : "http://" + raw).hostname.toLowerCase().replace(/^www\./, "");
+    } catch (_) {
+      return "";
+    }
+  }
+  const isSafeHost = (host) => !!host && (SAFE.has(registrable(host)) || SAFE.has(host));
+
+  const api = { RULES, LINK_RULES, NEG_BEFORE, NEG_AFTER, DEV_CONTEXT, URL_IN_TEXT, classifyUrl, registrable, hostOf, isSafeHost, NAME_BRANDS, FREE_MAIL, URL_TEXT };
   root.TrustGraphRules = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(globalThis);

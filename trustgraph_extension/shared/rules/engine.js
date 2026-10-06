@@ -143,13 +143,59 @@
       const url = m[0].replace(/[.,!?)]+$/, "");
       consider(url, { start: m.index, end: m.index + url.length, text: url });
     }
-    for (const href of metaLinks || []) consider(href, { start: -1, end: -1, text: href });
+    let mismatch = null;
+    for (const link of metaLinks || []) {
+      const href = typeof link === "string" ? link : link && link.href;
+      if (!href) continue;
+      consider(href, { start: -1, end: -1, text: href });
+      // The link SHOWS an address but OPENS a different site.
+      const shown = typeof link === "object" && link.text ? link.text.trim() : "";
+      if (!mismatch && shown && R.URL_TEXT.test(shown)) {
+        const a = R.hostOf(shown);
+        const b = R.hostOf(href);
+        if (a && b && R.registrable(a) !== R.registrable(b) && !(R.isSafeHost(a) && R.isSafeHost(b))) mismatch = { start: -1, end: -1, text: `${shown} → ${b}` };
+      }
+    }
     const flags = [];
+    if (mismatch) {
+      const def = R.LINK_RULES.link_mismatch;
+      flags.push({ id: "link_mismatch", title: def.title, reason: def.reason, kind: "rule", w: def.weight, evidence: mismatch });
+      unknownLink = true;
+    }
     for (const { id, evidence } of found.values()) {
       const def = R.LINK_RULES[id];
       flags.push({ id, title: def.title, reason: def.reason, kind: "rule", w: dev ? def.weight * 0.5 : def.weight, evidence });
     }
     return { flags, unknownLink };
+  }
+
+  // ---- the sender (email) ---------------------------------------------------
+  // "PayPal Support" <alerts@paypa1-secure.com>: a lookalike address, or a
+  // brand in the display name that the address doesn't belong to. Also
+  // notes when the address IS the brand's own domain (lowers the score).
+  const SENDER_RULES = {
+    sender_lookalike: { title: "Sender's address imitates a known company", reason: "The email address uses a brand's name or a near-miss of it, but isn't the brand's real domain.", weight: 0.5 },
+    sender_name_mismatch: { title: "Name says one company, address says another", reason: "The sender's name claims to be a well-known company, but the email comes from an address that isn't theirs.", weight: 0.45 },
+  };
+  function senderFindings(meta) {
+    const out = { flags: [], trusted: false };
+    const addr = String(meta.sender || "").trim().toLowerCase();
+    const at = addr.lastIndexOf("@");
+    if (at < 1) return out;
+    const domain = addr.slice(at + 1);
+    const reg = R.registrable(domain);
+    if (R.isSafeHost(domain) && !R.FREE_MAIL.has(reg)) out.trusted = true;
+    const add = (id) => out.flags.push({ id, title: SENDER_RULES[id].title, reason: SENDER_RULES[id].reason, kind: "rule", w: SENDER_RULES[id].weight, evidence: { start: -1, end: -1, text: meta.senderName ? `${meta.senderName} <${addr}>` : addr } });
+    const c = R.classifyUrl(domain);
+    if (c && !out.trusted && (c.issues.includes("link_lookalike") || c.issues.includes("link_punycode"))) {
+      add("sender_lookalike");
+      return out;
+    }
+    const name = String(meta.senderName || "").toLowerCase();
+    const squashed = reg.replace(/[^a-z0-9]/g, "");
+    const brand = R.NAME_BRANDS.find((b) => new RegExp(`(?:^|[^a-z])${b.replace(/ /g, "\\s*")}(?:[^a-z]|$)`).test(name));
+    if (brand && !squashed.includes(brand.replace(/ /g, "")) && !out.trusted) add("sender_name_mismatch");
+    return out;
   }
 
   // ---- one message -------------------------------------------------------
@@ -168,6 +214,8 @@
     }
     const links = linkFindings(n, meta.links, dev);
     fired.push(...links.flags);
+    const senderInfo = senderFindings(meta);
+    fired.push(...senderInfo.flags);
 
     const has = (id) => fired.some((f) => f.id === id);
     const linkish = links.unknownLink || links.flags.length > 0;
@@ -198,6 +246,12 @@
 
     const real = fired.filter((f) => f.kind === "rule");
     const strong = real.some((f) => f.w >= 0.3);
+    // Sent from the brand's own domain (e.g. alerts@hdfcbank.com) with no
+    // bad link: genuine alerts say "unusual sign-in" too.
+    if (senderInfo.trusted && strong && !links.flags.length) {
+      score *= 0.6;
+      contributions.push({ label: "Sent from the company's own email domain", effect: "lowers" });
+    }
     if (strong) {
       if (meta.sender && PHONE.test(String(meta.sender).trim())) {
         score = 1 - (1 - score) * 0.85;

@@ -156,7 +156,9 @@ function engineFor(settings) {
 // THE scoring function for one message -> Verdict (or {empty: true}).
 async function scoreMessage(text, channel, meta = {}) {
   const settings = await readSettings();
-  const verdict = await engineFor(settings).scoreMessage({ text: String(text || "").slice(0, TG.MAX_TEXT), channel, sender: meta.sender || null }, { sensitivity: settings.sensitivity });
+  const links = Array.isArray(meta.links) ? meta.links.slice(0, 20).filter((l) => l && typeof l.href === "string").map((l) => ({ href: l.href.slice(0, 2000), text: String(l.text || "").slice(0, 300) })) : [];
+  const input = { text: String(text || "").slice(0, TG.MAX_TEXT), channel, sender: meta.sender || null, senderName: meta.senderName || null, links };
+  const verdict = await engineFor(settings).scoreMessage(input, { sensitivity: settings.sensitivity });
   if (!verdict.empty && settings.engine === "remote") {
     await chrome.storage.local.set({ last_score_source: verdict.source === "server" ? "server" : verdict.offline ? "basic" : "error" });
   }
@@ -608,7 +610,7 @@ async function handleMessage(msg, sender) {
   const tabUrl = (sender && sender.tab && sender.tab.url) || "";
   switch (msg && msg.type) {
     case TG.MSG.SCORE: {
-      const verdict = await scoreMessage(msg.text, msg.channel, { sender: msg.sender || null });
+      const verdict = await scoreMessage(msg.text, msg.channel, { sender: msg.sender || null, senderName: msg.senderName || null, links: msg.links });
       if (verdict.empty) return { verdict };
       // noStats: the onboarding sample isn't counted or saved.
       const { record, saved } = await handleVerdict(verdict, { channel: msg.channel || "other", url: tabUrl, text: msg.text, noStats: !!msg.noStats });

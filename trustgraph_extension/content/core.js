@@ -240,15 +240,20 @@
   Panel.onOpenChange = () => updateLauncher();
 
   // --- One message (hover shield) ------------------------------------------
-  async function checkSingle(text, sender) {
+  // rec (optional, from the adapter): {sender, senderName, links}. They let
+  // the rules spot an unsaved number, a display name that doesn't match the
+  // address, or a link that shows one site and opens another. Memory only.
+  async function checkSingle(text, rec) {
+    const sender = rec ? rec.sender || null : null;
+    const extra = rec ? { senderName: rec.senderName || null, links: (rec.links || []).slice(0, 20).map((l) => ({ href: l.href, text: l.text || "" })) } : {};
     inFlight = true;
     shieldButton.setAttribute("aria-busy", "true");
     Panel.showChecking({}, layoutOpts());
-    const context = { onRetry: () => checkSingle(text, sender) };
+    const context = { onRetry: () => checkSingle(text, rec) };
     try {
       // The sender lets the rules weigh an unsaved number; it isn't stored.
       // A short scanning state (the pulsing ring) even when the answer is instant.
-      const [response] = await Promise.all([send({ type: TG.MSG.SCORE, text, channel: adapter.channel, sender }), new Promise((r) => setTimeout(r, 450))]);
+      const [response] = await Promise.all([send({ type: TG.MSG.SCORE, text, channel: adapter.channel, sender, ...extra }), new Promise((r) => setTimeout(r, 450))]);
       Panel.showSingle(response, context, layoutOpts());
     } catch (_) {
       Panel.showSingle({ error: "TrustGraph was updated or reloaded. Refresh this page and try again." }, {}, layoutOpts());
@@ -267,13 +272,13 @@
     const viaFallback = fallbackEls.has(message);
     const record = !viaFallback && adapter.record ? safe(() => adapter.record(message), null) : null;
     const extract = () => (viaFallback ? TrustGraphKit.text(message, "time, button, [aria-hidden='true']") : adapter.extractText(message));
-    const text = TrustGraphKit.clean(record ? record.text : safe(extract, ""));
+    const text = TrustGraphKit.clean(record ? (record.subject ? `Subject: ${record.subject}\n` : "") + record.text : safe(extract, ""));
     stopScan(); // a single check replaces any chat scan in the panel
     if (!text) {
       Panel.showSingle({ verdict: { empty: true } }, {}, layoutOpts());
       return;
     }
-    checkSingle(text, record ? record.sender : null);
+    checkSingle(text, record);
   });
 
   // --- Whole chat (launcher) -----------------------------------------------
@@ -349,8 +354,9 @@
           // Emails: include the subject so subject-line scams count.
           text: m.subject ? `Subject: ${m.subject}\n${m.text}` : m.text,
           sender: m.sender,
+          senderName: m.senderName || null,
           timestamp: m.timestamp,
-          links: (m.links || []).map((l) => l.href),
+          links: (m.links || []).map((l) => ({ href: l.href, text: l.text || "" })),
           senderHistory: history,
           prevSameSender: sameRun,
           inChat: true,

@@ -71,6 +71,10 @@
     link_ip: "suspicious_link",
     link_shortener: "suspicious_link",
     link_risky_tld: "suspicious_link",
+    link_mismatch: "suspicious_link",
+    account_phish: "credential_request", // "verify your account" = hand over your password
+    sender_lookalike: "sender_mismatch",
+    sender_name_mismatch: "sender_mismatch",
     combo_link_urgency_money: "pattern_similarity",
     combo_new_number_money: "impersonation",
     combo_official_link: "suspicious_link",
@@ -293,7 +297,7 @@
     async scoreMessage(input, opts = {}) {
       const text = cleanText(input.text);
       if (!text) return { empty: true };
-      const r = Engine.analyze(text, { sender: input.sender || null, links: input.links, id: input.id });
+      const r = Engine.analyze(text, { sender: input.sender || null, senderName: input.senderName || null, links: input.links, id: input.id });
       return fromEngine(Engine.combine(r, null, opts.status || "local"), { ...opts, engine: "local" });
     },
   };
@@ -307,7 +311,7 @@
       async scoreMessage(input, opts = {}) {
         const text = cleanText(input.text);
         if (!text) return { empty: true };
-        const local = Engine.analyze(text, { sender: input.sender || null, links: input.links, id: input.id });
+        const local = Engine.analyze(text, { sender: input.sender || null, senderName: input.senderName || null, links: input.links, id: input.id });
         let merged;
         try {
           const res = await fetchImpl(url, { message_text: text, channel: input.channel || "other" }, timeoutMs);

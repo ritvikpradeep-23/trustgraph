@@ -78,6 +78,7 @@
           const tag = node.tagName;
           if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || tag === "TEMPLATE") return NodeFilter.FILTER_REJECT;
           if (node.getAttribute("aria-hidden") === "true" && !node.querySelector("img[alt]")) return NodeFilter.FILTER_REJECT;
+          if (isHidden(node)) return NodeFilter.FILTER_REJECT;
         }
         return NodeFilter.FILTER_ACCEPT;
       },
@@ -99,6 +100,20 @@
     return lines ? cleanLines(parts.join("")) : clean(parts.join(""));
   }
 
+  // Text a person can't see: hidden email "preheaders", tracking blocks and
+  // the invisible padding scammers add to fool filters. Computed style only
+  // (no layout), so it also works on pages that aren't on screen.
+  function isHidden(el) {
+    const s = getComputedStyle(el);
+    if (s.display === "none" || s.visibility === "hidden" || s.visibility === "collapse") return true;
+    if (parseFloat(s.opacity) === 0) return true;
+    if (parseFloat(s.fontSize) < 2) return true; // font-size:0 / 1px tricks
+    const clipped = s.overflow === "hidden" || s.overflowY === "hidden";
+    if (clipped && (s.maxHeight === "0px" || s.height === "0px" || s.maxWidth === "0px" || s.width === "0px")) return true;
+    if (s.color === "rgba(0, 0, 0, 0)" || s.color === "transparent") return true;
+    return false;
+  }
+
   // Like clean(), but keeps single line breaks (drops blank-line runs).
   function cleanLines(value) {
     return String(value || "")
@@ -118,6 +133,7 @@
     const seen = new Set();
     for (const a of el.querySelectorAll("a[href]")) {
       if (skip && skip.contains(a)) continue;
+      if (isHidden(a)) continue; // invisible tracking links
       let href = a.href;
       try {
         const url = new URL(href);
@@ -267,5 +283,5 @@
     return html.length > limit ? html.slice(0, limit) + "\n<!-- truncated -->" : html;
   }
 
-  root.TrustGraphKit = { find, list, text, clean, cleanLines, isEmojiImg, links, directionOf, findScroller, hashId, register, textBlock, anonymizedHtml, BLOCK_NEVER: NEVER };
+  root.TrustGraphKit = { find, list, text, clean, cleanLines, isEmojiImg, isHidden, links, directionOf, findScroller, hashId, register, textBlock, anonymizedHtml, BLOCK_NEVER: NEVER };
 })(globalThis);

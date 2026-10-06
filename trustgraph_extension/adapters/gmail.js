@@ -12,8 +12,35 @@
   "use strict";
   const kit = window.TrustGraphKit;
 
-  // Quoted history and Gmail's "..." toggle must not be scored.
-  const EXCLUDE = ".gmail_quote, .gmail_extra, blockquote, .gmail_attr, .ajU, .yj6qo, .adL > .adm";
+  // Never scored: quoted history, signatures and Gmail's "..." toggle. Gmail
+  // renames classes and ids inside emails sent from other apps (adds an
+  // "m_123..." prefix), so these match on "contains".
+  const EXCLUDE = [
+    "blockquote", ".ajU", ".yj6qo", ".adL > .adm",
+    '[class*="gmail_quote"]', '[class*="gmail_extra"]', '[class*="gmail_attr"]', '[class*="gmail_signature"]',
+    '[id*="divRplyFwdMsg"]', '[id*="appendonsend"]', '[class*="OutlookMessageHeader"]', // Outlook replies
+    '[class*="moz-cite-prefix"]', '[class*="moz-signature"]', '[class*="yahoo_quoted"]', '[id*="ymail_android_signature"]',
+    '[class*="ms-outlook-mobile-signature"]', '[id*="Signature"]',
+  ].join(", ");
+
+  // Cuts what the selectors can't catch, by its words: the older message
+  // under "On <date>, <name> wrote:" or "-----Original Message-----" or an
+  // Outlook "From: / Sent:" header, and a legal disclaimer at the end
+  // ("This email is confidential... do not forward"), which otherwise reads
+  // like a scammer asking for secrecy. Forwarded messages are kept: a
+  // forwarded scam is what the user wants checked.
+  const QUOTE_START = /^(?:on .{4,200}wrote:\s*$|-{2,}\s*original message\s*-{2,}|_{8,}\s*$)/im;
+  const OUTLOOK_HEADER = /^from:\s.+\n(?:.*\n){0,2}?(?:sent|date):\s.+$/im;
+  const DISCLAIMER = /^(?:confidentiality notice|disclaimer\b|legal notice|this (?:e-?mail|message|communication)(?: and any (?:attachments?|files))? (?:is|are|contains?|may contain|is intended)\b.{0,40}(?:confidential|privileged|intended)|the information (?:contained )?in this (?:e-?mail|message)|if you (?:are not|have received this).{0,60}(?:intended recipient|in error))/im;
+  function trimEmail(text) {
+    let t = text;
+    const cut = (m) => (m && m.index > 0 ? (t = t.slice(0, m.index)) : t);
+    cut(QUOTE_START.exec(t));
+    cut(OUTLOOK_HEADER.exec(t));
+    const d = DISCLAIMER.exec(t);
+    if (d && t.slice(0, d.index).trim().length >= 10) t = t.slice(0, d.index); // keep it only if it's ALL there is
+    return t.trim();
+  }
   const BODY = ".a3s";
   const withBody = (el) => (el && el.querySelector(BODY) ? el : null);
 
@@ -60,12 +87,29 @@
 
     // "Subject: <subject>" plus the body, so subject-line scams count too.
     extractText(el) {
+      const r = adapter.record(el);
+      return r ? kit.clean((r.subject ? "Subject: " + r.subject + "\n" : "") + r.text) : "";
+    },
+
+    // Everything a single check needs: the email's own text, who it's from
+    // (address and display name, to spot "PayPal" sending from a lookalike
+    // domain) and its links with their visible text (to spot a link that
+    // shows one address and opens another). Memory only.
+    record(el) {
       const body = el.querySelector(BODY);
-      const bodyText = body ? kit.text(body, EXCLUDE) : "";
       const subjectEl = document.querySelector("h2.hP") || document.querySelector("h2[data-thread-perm-id]");
       const subject = subjectEl ? kit.clean(subjectEl.textContent) : "";
-      if (!bodyText && !subject) return "";
-      return kit.clean((subject ? "Subject: " + subject + "\n" : "") + bodyText);
+      const text = body ? trimEmail(kit.text(body, EXCLUDE, { lines: true })) : "";
+      if (!text && !subject) return null;
+      const from = el.querySelector("span.gD[email]") || el.querySelector("[email]");
+      const quote = body && body.querySelector(EXCLUDE);
+      return {
+        text,
+        subject,
+        sender: from ? from.getAttribute("email") : null,
+        senderName: from ? from.getAttribute("name") || kit.clean(from.textContent) || null : null,
+        links: body ? kit.links(body, quote) : [],
+      };
     },
 
     sender(el) {
@@ -85,8 +129,8 @@
       const messages = [];
       for (const el of els) {
         const body = el.querySelector(BODY);
-        const quote = body && body.querySelector(".gmail_quote, blockquote");
-        const text = body ? kit.text(body, EXCLUDE, { lines: true }) : "";
+        const quote = body && body.querySelector(EXCLUDE);
+        const text = body ? trimEmail(kit.text(body, EXCLUDE, { lines: true })) : "";
         const from = el.querySelector("span.gD[email]") || el.querySelector("[email]");
         const email = from ? from.getAttribute("email") : null;
         const timeEl = el.querySelector(".g3[title]") || el.querySelector("span[title][alt]");
@@ -108,7 +152,7 @@
           text,
           links: body ? kit.links(body, quote) : [],
           isReply: !!quote || /^re:/i.test(subject),
-          quotedText: quote ? kit.text(quote) : "",
+          quotedText: "", // never needed, so never read
           hasMedia,
           mediaType: hasMedia ? "attachment" : null,
           isForwarded: /^fwd?:/i.test(subject) || /-+ ?forwarded message ?-+/i.test(text),
@@ -152,5 +196,6 @@
     },
   };
 
+  adapter.trimEmail = trimEmail; // for tests
   kit.register(adapter);
 })();

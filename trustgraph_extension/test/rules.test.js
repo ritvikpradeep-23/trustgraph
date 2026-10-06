@@ -18,6 +18,10 @@ const FRIEND = { sender: "Arjun K", senderHistory: 40, inChat: true };
 
 // [category, language, text, meta]
 const SCAMS = [
+  ["email-phish", "en", "Subject: Action required\nDear customer, your account has been suspended due to unusual sign-in activity. Click here to verify your identity and restore access.", { sender: "security@paypa1-support.com", senderName: "PayPal Support" }],
+  ["email-phish", "en", "Subject: Invoice\nPlease review the attached invoice and confirm your billing details.", { sender: "paypal.billing.team@gmail.com", senderName: "PayPal" }],
+  ["email-phish", "en", "Subject: Your SBI statement\nView your statement here: www.onlinesbi.sbi", { sender: "noreply@statements-mailer.com", senderName: "Statements", links: [{ href: "https://sbi-statement.verify-now.top/login", text: "www.onlinesbi.sbi" }] }],
+  ["email-phish", "en", "Subject: Mailbox almost full\nYour mailbox is almost full. Tap the button below to upgrade storage and avoid losing emails.", { sender: "admin@mail-quota-center.com", senderName: "Mail Admin" }],
   ["giveaway", "en", "Free Nitro for everyone! Claim here: dlscord-gift.xyz/claim", UNKNOWN],
   ["giveaway", "en", "Steam gift for you, claim it before midnight steamcornmunity.ru/gift", UNKNOWN],
   ["job", "en", "Hi! We have a remote job for you: earn 3000 daily by liking videos.", UNKNOWN],
@@ -51,6 +55,10 @@ const SCAMS = [
 ];
 
 const BENIGN = [
+  ["email", "en", "Subject: Security alert\nNew sign-in on Windows. We noticed a new sign-in to your Google Account. If this was you, you dont need to do anything. If not, we will help you secure your account.", { sender: "no-reply@accounts.google.com", senderName: "Google" }],
+  ["email", "en", "Subject: Update your payment\nYour payment was declined. Please update your payment method to keep watching.", { sender: "info@account.netflix.com", senderName: "Netflix", links: [{ href: "https://www.netflix.com/YourAccount", text: "Update payment" }] }],
+  ["email", "en", "Subject: This week at the library\nNew books, events and a reading club on Saturday. See the full list on our website.", { sender: "news@citylibrary.org", senderName: "City Library", links: [{ href: "https://click.mailchimpapp.com/track?u=1", text: "See the full list" }, { href: "https://citylibrary.org/events", text: "citylibrary.org/events" }] }],
+  ["email", "en", "Subject: Your order has shipped\nYour package is on the way and will arrive Thursday.", { sender: "shipment-tracking@amazon.in", senderName: "Amazon.in" }],
   ["work", "en", "We are hiring for a remote job, apply on our careers page", FRIEND],
   ["chat", "en", "I watched the giveaway stream yesterday, so fun", FRIEND],
   ["links", "en", "Slides are at https://docs.google.com/presentation/d/1 and the images load from https://lh3.googleusercontent.com/x", FRIEND],
