@@ -4,7 +4,7 @@
 // ADDS to it, never replaces it.
 //
 //   const store = new TrustGraphChatStore(adapter, {onChange, debug});
-//   store.start();          // read now + watch for new rows (debounced 250ms)
+//   store.start();          // read now + watch for new rows (debounced, batched)
 //   store.messages();       // records in conversation order
 //   store.scanEarlier();    // user-requested: scroll up in steps, then restore
 //   store.stop();           // stop watching and forget all text
@@ -15,7 +15,10 @@
 (function (root) {
   "use strict";
 
-  const DEBOUNCE_MS = 250;
+  // Mutations are batched: a read runs DEBOUNCE_MS after the last change,
+  // and at least every MAX_WAIT_MS while changes keep coming (scrolling).
+  const DEBOUNCE_MS = 300;
+  const MAX_WAIT_MS = 1000;
 
   class ChatStore {
     constructor(adapter, opts = {}) {
@@ -28,6 +31,7 @@
       this.observer = null;
       this.observed = null;
       this.timer = 0;
+      this.firstChange = 0; // when the pending batch of mutations started
       this.lastStats = null;
       this.scanning = false;
     }
@@ -43,6 +47,7 @@
       this.observer = null;
       this.observed = null;
       clearTimeout(this.timer);
+      this.firstChange = 0;
       this.reset();
     }
 
@@ -52,16 +57,42 @@
     }
 
     // Watch the message list for rows added by scrolling or new messages.
+    // Adapters with messageList() (WhatsApp) are only ever watched there,
+    // never the whole page; with no open chat nothing is watched until the
+    // content script's 1s tick finds one.
     watch() {
-      const target = (this.adapter.scroller && this.adapter.scroller()) || (this.adapter.messagePane && this.adapter.messagePane()) || document.body;
+      const target = this.adapter.messageList
+        ? this.adapter.messageList()
+        : (this.adapter.scroller && this.adapter.scroller()) || (this.adapter.messagePane && this.adapter.messagePane()) || document.body;
       if (target === this.observed) return;
       if (this.observer) this.observer.disconnect();
-      this.observed = target;
-      this.observer = new MutationObserver(() => {
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.refresh(), DEBOUNCE_MS);
+      this.observer = null;
+      this.observed = target || null;
+      if (!target) return;
+      this.observer = new MutationObserver((mutations) => {
+        if (mutations.some(addsOrRemovesRows)) this.schedule();
       });
-      this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+      // Rows coming and going is all that matters; text edits, ticks and
+      // timestamps changing don't trigger a read.
+      this.observer.observe(target, { childList: true, subtree: true });
+    }
+
+    schedule() {
+      clearTimeout(this.timer);
+      const now = Date.now();
+      if (!this.firstChange) this.firstChange = now;
+      const wait = Math.max(0, Math.min(DEBOUNCE_MS, this.firstChange + MAX_WAIT_MS - now));
+      this.timer = setTimeout(() => {
+        this.firstChange = 0;
+        this.refresh();
+      }, wait);
+    }
+
+    // From the content script's 1s tick: a chat switch, or the list we
+    // watch was replaced (or there was none yet).
+    tick() {
+      const key = this.adapter.chatKey ? this.adapter.chatKey() : location.href;
+      if (key !== this.chatKey || !this.observed || !this.observed.isConnected) this.refresh();
     }
 
     // Called on mutations and by the content script's 1s tick.
@@ -70,6 +101,8 @@
       if (key !== this.chatKey) {
         // A different chat: start over so two chats never mix.
         this.chatKey = key;
+        clearTimeout(this.timer);
+        this.firstChange = 0;
         this.reset();
         this.observed = null;
         this.watch();
@@ -199,6 +232,12 @@
       }
       return { added, reachedTop };
     }
+  }
+
+  // An element added or removed, other than TrustGraph's own UI.
+  function addsOrRemovesRows(m) {
+    const isRow = (n) => n.nodeType === 1 && !/^TRUSTGRAPH-/.test(n.tagName);
+    return Array.prototype.some.call(m.addedNodes, isRow) || Array.prototype.some.call(m.removedNodes, isRow);
   }
 
   // Resolves after the next batch of row changes settles (true), or after

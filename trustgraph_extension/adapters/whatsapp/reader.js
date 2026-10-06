@@ -12,6 +12,8 @@
 //   span.selectable-text          the message body
 //   [role="row"]                  rows, including date separators and
 //                                 system notices that have no data-id
+//   [role="application"]          the message list inside #main
+//   [data-icon="msg-dblcheck"]    delivery ticks: only your own messages
 // Class names are hashed (x1n2onr6…) and change, so none are used, apart
 // from WhatsApp's long-lived semantic ones above.
 //
@@ -26,6 +28,8 @@
   const DELETED_ICON = '[data-icon*="recalled"]';
   const DELETED_TEXT = /^(this message was deleted|you deleted this message|ഈ സന്ദേശം ഇല്ലാതാക്കി)\.?$/i;
   const FORWARDED_TEXT = /^forwarded( many times)?$/i;
+  // Sent/delivered/read/pending ticks appear only on your own messages.
+  const OUTGOING_ICON = '[data-icon="msg-check"], [data-icon="msg-dblcheck"], [data-icon="msg-time"], [data-icon="msg-check-light"], [data-icon="msg-dblcheck-light"]';
   const TIME_ONLY = /^\d{1,2}[:.]\d{2}(\s?[ap]\.?\s?m\.?)?$/i;
   const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec";
   const DATE_ROW = new RegExp(
@@ -149,7 +153,32 @@
     return null;
   }
 
-  function readContainer(container, pane, locale, order) {
+  // The names your own messages are sent under ("[7:40 am, …] Ritvik: "),
+  // learned from bubbles that carry delivery ticks.
+  function ownNames(scope) {
+    const names = new Set();
+    for (const icon of scope.querySelectorAll(OUTGOING_ICON)) {
+      const container = icon.closest("[data-id]");
+      const pre = container && container.querySelector("[data-pre-plain-text]");
+      const meta = pre && parsePrePlainText(pre.getAttribute("data-pre-plain-text"));
+      if (meta && meta.sender) names.add(meta.sender);
+    }
+    return names;
+  }
+
+  // Yours or theirs, from stable markers first: an old-style true_/false_
+  // id, delivery ticks, then the sender name. Bubble position (left or
+  // right) only when none of those is there.
+  function directionFor(container, meta, bubble, pane, own) {
+    const id = container.getAttribute("data-id") || "";
+    if (/^true_/.test(id)) return "outgoing";
+    if (/^false_/.test(id)) return "incoming";
+    if (container.querySelector(OUTGOING_ICON)) return "outgoing";
+    if (meta && meta.sender && own && own.size) return own.has(meta.sender) ? "outgoing" : "incoming";
+    return kit.directionOf(bubble, pane);
+  }
+
+  function readContainer(container, pane, locale, order, own) {
     const pre = container.matches("[data-pre-plain-text]") ? container : container.querySelector("[data-pre-plain-text]");
     const meta = pre ? parsePrePlainText(pre.getAttribute("data-pre-plain-text"), locale, order) : null;
     const quote = quotedBlock(container);
@@ -172,7 +201,7 @@
     const deleted = !!container.querySelector(DELETED_ICON) || DELETED_TEXT.test(visible) || DELETED_TEXT.test(text);
 
     const bubble = pre || container.querySelector("img, video") || container.firstElementChild || container;
-    let direction = kit.directionOf(bubble, pane);
+    let direction = directionFor(container, meta, bubble, pane, own);
 
     let type;
     let media = mediaType;
@@ -253,14 +282,27 @@
     return (base.querySelector && base.querySelector("#main")) || null;
   }
 
+  // The message list of the open chat: the [role="application"] element
+  // (or, failing that, the scroller) holding the messages. Never the chat
+  // header, the composer or anything outside #main.
+  function messageList(main) {
+    if (!main) return null;
+    const first = main.querySelector("[data-id]");
+    return (first && (first.closest('[role="application"]') || kit.findScroller(first))) || main.querySelector('[role="application"]') || null;
+  }
+
   function read(rootEl, opts) {
     const locale = opts && opts.locale;
     const main = chatPane(rootEl);
     const stats = { rows: 0, containers: 0, parsed: 0, skipped: {}, byType: {} };
     if (!main) return { messages: [], stats, pane: null };
 
-    const containers = Array.from(main.querySelectorAll("[data-id]")).filter((el) => !el.parentElement.closest("[data-id]"));
-    const rows = Array.from(main.querySelectorAll('[role="row"]'));
+    // Only the message list: the chat header, composer and sidebar are
+    // never read.
+    const scope = messageList(main) || main;
+    const inList = (el) => !el.closest("header, footer");
+    const containers = Array.from(scope.querySelectorAll("[data-id]")).filter((el) => inList(el) && !el.parentElement.closest("[data-id]"));
+    const rows = Array.from(scope.querySelectorAll('[role="row"]')).filter(inList);
     stats.rows = rows.length;
     stats.containers = containers.length;
     // Rows that hold no message container: date separators, system notices.
@@ -271,13 +313,14 @@
 
     // Bubbles are measured against the message list, not the whole pane.
     const list = (containers[0] && kit.findScroller(containers[0])) || main;
-    const order = (opts && opts.dateOrder) || inferDateOrder(main.querySelectorAll("[data-pre-plain-text]"));
+    const order = (opts && opts.dateOrder) || inferDateOrder(scope.querySelectorAll("[data-pre-plain-text]"));
+    const own = ownNames(scope);
     const messages = [];
     const skip = (reason) => (stats.skipped[reason] = (stats.skipped[reason] || 0) + 1);
     for (const item of items) {
       let record = null;
       try {
-        record = item.kind === "msg" ? readContainer(item.el, list, locale, order) : readBareRow(item.el);
+        record = item.kind === "msg" ? readContainer(item.el, list, locale, order, own) : readBareRow(item.el);
       } catch (err) {
         skip("error");
         continue;
@@ -301,8 +344,9 @@
   // One container (for a single-message check from the hover shield).
   function readOne(container, opts) {
     const pane = kit.findScroller(container) || container.closest("#main") || document.body;
-    const order = inferDateOrder((container.closest("#main") || container).querySelectorAll("[data-pre-plain-text]"));
-    const record = readContainer(container, pane, opts && opts.locale, order);
+    const scope = messageList(container.closest("#main")) || container;
+    const order = inferDateOrder(scope.querySelectorAll("[data-pre-plain-text]"));
+    const record = readContainer(container, pane, opts && opts.locale, order, ownNames(scope));
     return record.type === "empty" ? null : record;
   }
 
@@ -310,5 +354,5 @@
     return read(rootEl, opts).messages;
   }
 
-  root.TrustGraphWhatsAppReader = { read, readOne, readMessages, parsePrePlainText, parseDate, parseTime, inferDateOrder, chatPane };
+  root.TrustGraphWhatsAppReader = { read, readOne, readMessages, parsePrePlainText, parseDate, parseTime, inferDateOrder, chatPane, messageList };
 })(globalThis);

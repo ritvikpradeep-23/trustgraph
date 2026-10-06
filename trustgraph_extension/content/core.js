@@ -103,6 +103,51 @@
   }
 
   // -------------------------------------------------------------------------
+  // What a scan may send to the model, and why not. TG.DEBUG_SCAN (or
+  // localStorage "trustgraph-debug-scan" = "1") logs each decision, with
+  // the element and its text, so you can see why something was or wasn't
+  // flagged. Off by default: it prints message text to the console.
+  // -------------------------------------------------------------------------
+  const URLS = /(?:https?:\/\/|www\.)\S+|\b[\w-]+(?:\.[\w-]+)+\/\S*/giu;
+  const NOT_WORDS = /[\s\p{P}\p{S}\p{M}\p{Cf}\p{Extended_Pictographic}\p{Regional_Indicator}]/gu;
+
+  // null if the message should be scored, else the reason it's skipped.
+  function skipReason(m) {
+    if (m.type !== "text" || !m.text) return m.type === "media" ? "media without text" : m.type || "no text";
+    if (m.direction === "outgoing" && !TG.SCAN_OWN_MESSAGES) return "own message";
+    if (!adapter.scanFilters) return null;
+    const text = m.text.trim();
+    if (!text.replace(URLS, " ").replace(NOT_WORDS, "")) return text.match(URLS) ? "only links" : "only emoji or symbols";
+    const words = text.split(/\s+/).filter(Boolean).length;
+    if (text.length < TG.SCAN_MIN_CHARS && words < TG.SCAN_MIN_WORDS) return `too short (${text.length} chars, ${words} words)`;
+    return null;
+  }
+
+  function debugScan() {
+    if (TG.DEBUG_SCAN) return true;
+    try {
+      return localStorage.getItem("trustgraph-debug-scan") === "1";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function logScan(el, text, outcome) {
+    if (debugScan()) console.debug(LOG, "scan:", outcome, "|", el, "|", JSON.stringify(text || ""));
+  }
+
+  // Markers on the site's own message elements, so each is scored once
+  // and you can see in DevTools what was scanned: data-trustgraph-scored
+  // (its score), data-trustgraph-flagged, data-trustgraph-skipped (reason).
+  const MARKS = ["data-trustgraph-scored", "data-trustgraph-flagged", "data-trustgraph-skipped"];
+  function mark(el, name, value) {
+    if (el && el.setAttribute) el.setAttribute(name, value);
+  }
+  function clearMarks() {
+    for (const el of document.querySelectorAll(MARKS.map((a) => `[${a}]`).join(","))) for (const a of MARKS) el.removeAttribute(a);
+  }
+
+  // -------------------------------------------------------------------------
   // The shield: ONE floating button, reused for every message.
   // -------------------------------------------------------------------------
   const shieldHost = document.createElement("trustgraph-shield");
@@ -168,6 +213,16 @@
       if (target === shieldHost) return; // pointer moved onto the shield itself
       let message = safe(() => adapter.findMessage(target), null);
       let via = adapter.lastStrategy || "?";
+      if (message && adapter.scanFilters && message !== currentMessage) {
+        // No shield on messages a scan would skip (yours, too short, ...).
+        const rec = safe(() => adapter.record(message), null);
+        const why = rec ? skipReason(rec) : "not a message";
+        if (why) {
+          if (message !== lastSkipped) logScan(message, rec && rec.text, "no shield: " + why);
+          lastSkipped = message;
+          message = null;
+        }
+      }
       if (!message && adapter.fallback !== false) {
         // The site's own selectors found nothing (it may have changed its
         // HTML): fall back to any message-sized block of text in the chat
@@ -188,6 +243,8 @@
       }
     });
   }
+
+  let lastSkipped = null; // last hovered message that gets no shield (logged once)
 
   // Elements found by the fallback (read with the generic text reader).
   const fallbackEls = new WeakSet();
@@ -331,6 +388,10 @@
     current.earlier = { running: false, label: "", reachedTop: false };
     current.notice = "";
     current.autoOpened = false;
+    current.scored = new Set(); // ids already scored (each message once)
+    current.skipped = new Set(); // ids skipped, logged once
+    current.rescore = false; // Retry: score everything again
+    clearMarks(); // nothing left over from the previous chat
   }
 
   // opts.auto: started by auto-scan (rail only until something is High).
@@ -345,6 +406,8 @@
         if (scan !== current) return;
         if (info.chatSwitched) {
           // A different chat: start its verdict from scratch.
+          if (debugScan()) console.debug(LOG, "scan: chat switched, old results cleared");
+          hideShield();
           freshScanState(current);
           renderScan("scanning");
         }
@@ -362,10 +425,11 @@
     if (!scan) return;
     scan.store.stop(); // forgets all message text
     scan = null;
+    clearMarks();
   }
 
-  // Messages worth scoring, with the context the rules use: text from
-  // other people (your own messages aren't checked), the most recent
+  // Messages worth scoring (see skipReason), with the context the rules
+  // use: text from other people (your own messages aren't checked), the most recent
   // MAX_SCAN_MESSAGES. For each: how many earlier messages this sender has
   // in the chat, and whether it continues a run from the same sender
   // (within 5 minutes, no reply in between).
@@ -382,7 +446,13 @@
       const history = counts[key] || 0;
       counts[key] = history + 1;
       const sameRun = !!prev && prev.key === key && (!(m.timestamp && prev.ts) || m.timestamp - prev.ts <= 5 * 60 * 1000);
-      if (m.type === "text" && m.text && m.direction !== "outgoing") {
+      const why = skipReason(m);
+      if (why && !s.skipped.has(m.id)) {
+        s.skipped.add(m.id);
+        mark(m.element, "data-trustgraph-skipped", why);
+        logScan(m.element, m.text, "skipped: " + why);
+      }
+      if (!why) {
         items.push({
           id: m.id,
           // Emails: include the subject so subject-line scams count.
@@ -416,6 +486,13 @@
       do {
         s.again = false;
         const items = candidates(s);
+        const fresh = items.filter((it) => !s.scored.has(it.id));
+        // Only skipped messages arrived (or none): no new scoring pass.
+        if (!fresh.length && s.verdict && !s.rescore) {
+          renderScan("result");
+          continue;
+        }
+        s.rescore = false;
         const local = TrustGraphEngine.analyzeChat(items);
         // Ask the server only about new messages, and not again once it's
         // known to be down (Retry clears that).
@@ -430,6 +507,16 @@
         const status = s.server === "local" ? "local" : s.server || "offline";
         s.results = new Map(items.map((it) => [it.id, TrustGraphEngine.combine(local[it.id], s.serverCache.get(it.id) || null, status)]));
         s.items = items;
+        for (const it of items) {
+          const r = s.results.get(it.id);
+          const score = Math.round(((r && r.score) || 0) * 100);
+          const el = s.store.elementFor(it.id);
+          mark(el, "data-trustgraph-scored", String(score));
+          if (score >= TG.FLAG_THRESHOLD) mark(el, "data-trustgraph-flagged", "");
+          else if (el && el.removeAttribute) el.removeAttribute("data-trustgraph-flagged");
+          if (!s.scored.has(it.id)) logScan(el, it.text, `scored ${score}/100 (${(r && r.band) || "?"})` + (score >= TG.FLAG_THRESHOLD ? ` >= ${TG.FLAG_THRESHOLD}: flagged` : ""));
+          s.scored.add(it.id);
+        }
         s.verdict = Verdict.aggregate(items, Object.fromEntries(s.results), { id: s.verdictId, sensitivity: settings.sensitivity, server: s.server || "offline" });
         if (s.store.readCount() && items.length) await recordVerdict(s);
         if (scan !== s) return;
@@ -507,6 +594,7 @@
           // Try the server again for everything it hasn't answered.
           for (const [id, r] of s.serverCache) if (!r) s.serverCache.delete(id);
           s.server = null;
+          s.rescore = true;
           renderScan("scanning");
           scoreNew();
         },
@@ -598,7 +686,8 @@
       evaluate();
     }
     // Chat switched without a URL change (WhatsApp): the store resets itself.
-    if (scan && safe(() => adapter.chatKey(), null) !== scan.store.chatKey) scan.store.refresh();
+    if (scan) safe(() => scan.store.tick());
+    if (currentMessage && !currentMessage.isConnected) hideShield();
     if (!scan && active && settings.scan_mode === "auto" && ticks % 2 === 0) maybeAutoScan();
     // Chats that open without a URL change (LinkedIn pop-ups): show or hide
     // the scan button as conversations appear.

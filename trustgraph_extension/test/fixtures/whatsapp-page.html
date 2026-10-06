@@ -1,0 +1,112 @@
+<!--
+  A whole WhatsApp Web page (not just the chat pane), SYNTHETIC, built on the
+  structure in whatsapp-live.html: hashed class names, data-id without a
+  true_/false_ prefix, data-pre-plain-text, span.selectable-text bodies,
+  role="row" rows inside the message list. It adds everything the extension
+  must NEVER scan: the chat list with scam-looking previews, the search box,
+  the contact header, the end-to-end encryption notice, date separators,
+  an open menu and an unread banner. Used by test/whatsapp-scope-e2e.js.
+  Names, numbers and text are made up.
+-->
+<style>
+  body { margin: 0; font: 14px system-ui, sans-serif; }
+  #app { display: flex; height: 720px; }
+  #side { width: 340px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+  #side header, #main header { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: #f0f2f5; }
+  .xsearch { margin: 8px; padding: 6px 10px; background: #f0f2f5; border-radius: 8px; }
+  #pane-side { flex: 1; overflow-y: auto; }
+  .xchat { padding: 10px 12px; border-bottom: 1px solid #eee; }
+  .xchat .xname { font-weight: 600; }
+  .xchat .xprev { color: #667; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .x10l6tqk { flex: 1; position: relative; min-height: 0; }
+  .x1n2onr6 { position: absolute; inset: 0; overflow-y: auto; padding: 8px 40px; background: #efeae2; }
+  [role="row"] { display: flex; margin: 4px 0; }
+  .x1c4vz4f { justify-content: center; }
+  .xnz67gz { display: flex; width: 100%; }
+  .x78zum5 { justify-content: flex-end; }
+  .x9f619 { max-width: 65%; background: #fff; border-radius: 8px; padding: 6px 8px; }
+  .x78zum5 .x9f619 { background: #d9fdd3; }
+  .xpill { background: #fff; border-radius: 8px; padding: 4px 10px; font-size: 12px; }
+  .xmeta { font-size: 11px; color: #667; margin-left: 8px; }
+  footer { height: 60px; background: #f0f2f5; }
+  .xmenu { position: fixed; right: 20px; top: 50px; width: 240px; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.2); padding: 6px 0; z-index: 10; }
+  .xmenu li { list-style: none; padding: 8px 16px; }
+</style>
+<div id="app">
+  <div id="side">
+    <header><span dir="auto" title="Chats">Chats</span><button aria-label="Menu">⋮</button></header>
+    <div class="xsearch"><div contenteditable="true" role="textbox" aria-label="Search input textbox" data-tab="3">Search or start a new chat to find people and messages</div></div>
+    <div id="pane-side">
+      <div aria-label="Chat list" role="grid">
+        <div role="row" class="xchat"><div class="xname"><span dir="auto" title="Bank Alerts">Bank Alerts</span></div><div class="xprev"><span dir="ltr" title="Your SBI KYC is pending, account will be blocked today. Share the OTP to verify: http://sbi-kyc.xyz">Your SBI KYC is pending, account will be blocked today. Share the OTP to verify: http://sbi-kyc.xyz</span></div></div>
+        <div role="row" class="xchat"><div class="xname"><span dir="auto" title="Unknown">+44 7700 900123</span></div><div class="xprev"><span dir="ltr">Hi Mum, new number. Buy 2 Google Play gift cards and send me the codes, urgent</span></div></div>
+        <div role="row" class="xchat"><div class="xname"><span dir="auto" title="Arjun K">Arjun K</span></div><div class="xprev"><span dir="ltr">Are you coming to the fest tomorrow evening with everyone?</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="main">
+    <header>
+      <div><span dir="auto" title="Arjun K">Arjun K</span><span dir="auto">online · last seen today at 7:40 am, tap here for contact info and to verify security code</span></div>
+      <div><button aria-label="Search">S</button><button aria-label="Menu">M</button></div>
+    </header>
+    <div class="x10l6tqk">
+      <div tabindex="0" class="x1n2onr6">
+        <div role="application">
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="ltr">Messages and calls are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them. Click to learn more.</span></div></div>
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="auto">YESTERDAY</span></div></div>
+
+          <!-- incoming, normal -->
+          <div role="row"><div data-id="3EB0B11A" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:36 am, 4/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span>Hi! Are you coming to the fest tomorrow? Bring your ID card.</span></span>
+            </div><span class="xmeta">7:36 am</span></div>
+          </div></div>
+
+          <!-- outgoing (mine), with scam-like words -->
+          <div role="row"><div data-id="AC76B22E" class="xnz67gz x78zum5">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:40 am, 4/10/2026] Ritvik: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span>Never share your OTP with anyone, banks will never ask for it urgently</span></span>
+            </div><span class="xmeta">7:40 am</span><span data-icon="msg-dblcheck"></span></div>
+          </div></div>
+
+          <!-- outgoing (mine), no tick icon in this row: learned from the sender name -->
+          <div role="row"><div data-id="AC76B33F" class="xnz67gz x78zum5">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[7:41 am, 4/10/2026] Ritvik: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span>Also don't buy gift cards for anyone who asks on chat, it is always a scam</span></span>
+            </div><span class="xmeta">7:41 am</span></div>
+          </div></div>
+
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="auto">TODAY</span></div></div>
+          <div role="row" class="x1c4vz4f"><div class="xpill"><span dir="auto">3 UNREAD MESSAGES</span></div></div>
+
+          <!-- incoming, short / emoji-only / link-only -->
+          <div role="row"><div data-id="3EB0B22B" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:01 am, 5/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span>ok see you</span></span>
+            </div><span class="xmeta">8:01 am</span></div>
+          </div></div>
+          <div role="row"><div data-id="3EB0B33C" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:02 am, 5/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span><img alt="😂" src="data:," width="18" height="18"><img alt="😂" src="data:," width="18" height="18"><img alt="👍" src="data:," width="18" height="18"></span></span>
+            </div><span class="xmeta">8:02 am</span></div>
+          </div></div>
+          <div role="row"><div data-id="3EB0B44D" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:03 am, 5/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span><a href="https://bit.ly/3xYzAbc">https://bit.ly/3xYzAbc</a></span></span>
+            </div><span class="xmeta">8:03 am</span></div>
+          </div></div>
+
+          <!-- incoming scam: must be scanned and flagged -->
+          <div role="row"><div data-id="3EB0B55E" class="xnz67gz">
+            <div class="x9f619"><div class="copyable-text" data-pre-plain-text="[8:10 am, 5/10/2026] Arjun K: ">
+              <span dir="ltr" class="selectable-text copyable-text"><span>My phone broke, this is my new number. Please buy 2 Google Play gift cards and send me the codes now, urgent, don't tell anyone</span></span>
+            </div><span class="xmeta">8:10 am</span></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <footer><div contenteditable="true" role="textbox" aria-label="Type a message">I am typing a reply about the OTP and gift cards right now</div></footer>
+  </div>
+  <ul class="xmenu" role="application" aria-label="Menu"><li role="button">Contact info and verify security code</li><li role="button">Report this contact to WhatsApp and block them</li></ul>
+</div>

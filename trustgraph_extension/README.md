@@ -110,6 +110,7 @@ node trustgraph_extension/test/verdict.test.js     # engine interface, signal ma
 node trustgraph_extension/test/result.test.js      # privacy: Result has no text field, nothing leaks
 node trustgraph_extension/test/background.test.js  # service worker flows against a fake chrome API
 node trustgraph_extension/test/tokens.test.js      # tokens match the spec; contrast on every chip
+node trustgraph_extension/test/whatsapp-scope-e2e.js  # needs playwright: WhatsApp scans only messages in the open chat
 cd trustgraph_extension && python3 -m http.server 5500       # then open:
 #   http://localhost:5500/test/test-chat.html      fake chat: hover a bubble, click the shield
 #   http://localhost:5500/test/adapter-tests.html  every adapter vs. its saved HTML sample
@@ -124,6 +125,19 @@ TrustGraph toolbar icon, and read the line under "This page": `Rows 36 ·
 message containers 16 · parsed 16`. *parsed* should equal *message
 containers*. With Debug mode on, the same counts are logged to the page
 console (never message text).
+
+**Checking what a WhatsApp scan looks at:** in WhatsApp Web's DevTools
+console run `localStorage.setItem("trustgraph-debug-scan", "1")` and show
+the *Verbose* log level. Each message a scan looks at is logged once as
+`[TrustGraph] scan: scored 92/100 (High) >= 35: flagged | <element> | "text"`
+or `scan: skipped: own message | …` (too short, only emoji, only links,
+media without text). In Elements, scanned bubbles carry
+`data-trustgraph-scored`, `data-trustgraph-flagged` or
+`data-trustgraph-skipped`; nothing outside the open chat's message list
+should. This prints message text to the console, so turn it off again with
+`localStorage.removeItem("trustgraph-debug-scan")`. The limits
+(`FLAG_THRESHOLD`, `SCAN_MIN_CHARS`, `SCAN_MIN_WORDS`, `SCAN_OWN_MESSAGES`,
+`DEBUG_SCAN`) are in `shared/constants.js`.
 
 ## Where to look when something breaks
 
@@ -268,7 +282,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.1.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.2.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,

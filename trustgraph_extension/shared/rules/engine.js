@@ -35,7 +35,7 @@
   const R = root.TrustGraphRules || require("./rules.js");
 
   const HIGH = 0.7;
-  const CAUTION = 0.35;
+  const CAUTION = ((root.TG && root.TG.FLAG_THRESHOLD) || 35) / 100; // TG.FLAG_THRESHOLD (shared/constants.js)
   const SINGLE_CAP = 0.69;
   const RANK = { Low: 0, Caution: 1, High: 2 };
   const SIGNALS = ["continuity", "similarity", "precedent", "anomaly"];

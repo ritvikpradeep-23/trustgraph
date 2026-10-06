@@ -86,7 +86,9 @@
   const SERVER_SIGNAL = { continuity: "continuity_break", anomaly: "continuity_break", similarity: "pattern_similarity", precedent: "pattern_similarity" };
 
   // Sensitivity moves the thresholds; Balanced is the spec's (35 / 70).
-  const THRESHOLDS = { relaxed: { caution: 45, high: 80 }, balanced: { caution: 35, high: 70 }, strict: { caution: 25, high: 60 } };
+  // Balanced's Caution is TG.FLAG_THRESHOLD (shared/constants.js).
+  const FLAG = (root.TG && root.TG.FLAG_THRESHOLD) || 35;
+  const THRESHOLDS = { relaxed: { caution: FLAG + 10, high: 80 }, balanced: { caution: FLAG, high: 70 }, strict: { caution: FLAG - 10, high: 60 } };
   const LEVEL_RANK = { low: 0, caution: 1, high: 2 };
   const SEV_RANK = { low: 0, medium: 1, high: 2 };
 
@@ -265,7 +267,7 @@
   // 70-100. The server's verdict is kept and its score is placed inside that
   // verdict's range, so the level and the number never disagree
   // (e.g. server "Caution, 0.89" shows as Caution 69, not Caution 89).
-  const BAND_RANGE = { Low: [0, 0.34], Caution: [0.35, 0.69], High: [0.7, 1] };
+  const BAND_RANGE = { Low: [0, (FLAG - 1) / 100], Caution: [FLAG / 100, 0.69], High: [0.7, 1] };
   const inBand = (band, score) => Math.max(BAND_RANGE[band][0], Math.min(BAND_RANGE[band][1], score));
   function normalizeRemote(data) {
     if (!data || typeof data !== "object") return null;

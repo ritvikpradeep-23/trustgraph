@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.1";
+  TG.VERSION = "0.2.2";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -64,6 +64,29 @@
   TG.HISTORY_MAX = 2000; // newest kept when over
   TG.SERVER_CONCURRENCY = 4; // parallel /api/score calls during a chat scan
   TG.MAX_SCAN_MESSAGES = 40; // most recent incoming messages scored per scan
+
+  // Risk score (0-100) from which a message is flagged (Caution) at the
+  // default Balanced sensitivity. The rules engine, the verdict bands and
+  // the panel all read this one value; High stays at 70.
+  TG.FLAG_THRESHOLD = 35;
+
+  // Chat scans on sites whose adapter sets `scanFilters` (WhatsApp): what
+  // never reaches the model. A message is long enough with at least
+  // SCAN_MIN_CHARS characters OR SCAN_MIN_WORDS words; only-emoji,
+  // only-link and media-without-caption messages are always skipped.
+  TG.SCAN_MIN_CHARS = 25;
+  TG.SCAN_MIN_WORDS = 5;
+  // Your own (outgoing) messages are not scored. NOTE for the owner: set
+  // this to true if you want them scored too (e.g. to test with one phone).
+  TG.SCAN_OWN_MESSAGES = false;
+
+  // Logs every message a scan looks at (element, text, score or the reason
+  // it was skipped) with console.debug. This prints message text to the
+  // console, so it's off by default. Turn it on here, or without editing:
+  // in WhatsApp's DevTools console run
+  //   localStorage.setItem("trustgraph-debug-scan", "1")
+  // (and removeItem to turn it off). Console "Verbose" level must be shown.
+  TG.DEBUG_SCAN = false;
 
   TG.CHANNEL_LABELS = {
     whatsapp: "WhatsApp",

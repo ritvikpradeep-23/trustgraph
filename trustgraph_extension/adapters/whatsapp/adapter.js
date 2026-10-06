@@ -9,6 +9,11 @@
   const reader = window.TrustGraphWhatsAppReader;
 
   const main = () => document.querySelector("#main");
+  // Inside the open chat's message list (not its header or composer).
+  const inList = (el) => {
+    const list = reader.messageList(main());
+    return !!list && list.contains(el) && !el.closest("header, footer");
+  };
   // Remembers which #main element we saw, so a re-rendered pane (WhatsApp
   // swaps it on chat switch) counts as a new chat even with the same title.
   const paneIds = new WeakMap();
@@ -17,12 +22,18 @@
   const adapter = {
     channel: "whatsapp",
     push: true, // the side panel narrows the page instead of covering it
+    // Only real message bubbles: no generic "any block of text" fallback
+    // (it picked up chat-list previews, the sidebar and notices).
+    fallback: false,
+    // Chat scans skip your own, very short, emoji-only and link-only
+    // messages (content/core.js skipReason; limits in shared/constants.js).
+    scanFilters: true,
     strategies: [
       {
         name: "main-data-id",
         find: (t) => {
           const el = t.closest("[data-id]");
-          return el && el.closest("#main") ? el : null;
+          return el && inList(el) ? el : null;
         },
         all: () => (main() ? Array.from(main().querySelectorAll("[data-id]")).filter((el) => !el.parentElement.closest("[data-id]")) : []),
       },
@@ -30,7 +41,7 @@
         name: "copyable-text",
         find: (t) => {
           const box = t.closest(".copyable-text[data-pre-plain-text]");
-          return box && box.closest("#main") ? box.closest('[role="row"]') || box : null;
+          return box && inList(box) ? box.closest('[role="row"]') || box : null;
         },
         all: () => (main() ? main().querySelectorAll(".copyable-text[data-pre-plain-text]") : []),
       },
@@ -40,8 +51,11 @@
       return url.startsWith("https://web.whatsapp.com/");
     },
 
+    // Only inside the open chat's message list; never the chat list, search,
+    // header, composer, menus or popups.
     findMessage(target) {
-      if (target.closest('footer, [contenteditable="true"], header')) return null; // composer & chat header
+      if (!target.closest || target.closest('footer, header, [contenteditable="true"], [role="textbox"]')) return null;
+      if (!inList(target)) return null;
       return kit.find(adapter, target);
     },
 
@@ -102,6 +116,11 @@
     chatHeader() {
       const m = main();
       return m ? m.querySelector("header") : null;
+    },
+
+    // The element holding the open chat's messages (chat-store observes it).
+    messageList() {
+      return reader.messageList(main());
     },
 
     // Area the side panel must never cover.
