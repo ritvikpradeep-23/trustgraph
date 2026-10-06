@@ -94,6 +94,7 @@ function startSites() {
   });
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
+  await sw.evaluate(() => chrome.storage.local.set({ settings: { backend_url: "http://127.0.0.1:8000" } })); // the local test server
 
   await ctx.route("https://web.whatsapp.com/**", (r) => serve(r, path.join(__dirname, "fixtures", "whatsapp-page.html")));
   await ctx.addInitScript(() => {

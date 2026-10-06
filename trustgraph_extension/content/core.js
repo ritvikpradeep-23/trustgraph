@@ -324,7 +324,7 @@
     try {
       // The sender lets the rules weigh an unsaved number; it isn't stored.
       // A short scanning state (the pulsing ring) even when the answer is instant.
-      [response] = await Promise.all([ask(6000), new Promise((r) => setTimeout(r, 450))]);
+      [response] = await Promise.all([ask(TG.PAGE_WAIT_MS), new Promise((r) => setTimeout(r, 450))]);
       // An empty answer usually means Chrome was still waking TrustGraph's
       // background up: ask once more (not after a time-out).
       if (!timedOut && (!response || (!response.verdict && !response.error))) response = await ask(3000);
@@ -499,7 +499,7 @@
         const ask = s.server === "offline" || s.server === "local" ? [] : items.filter((it) => !s.serverCache.has(it.id));
         if (ask.length) {
           // If the background can't be reached, carry on with the on-device rules.
-          const out = (await sendWithin({ type: TG.MSG.SCORE_SERVER, items: ask.map((it) => ({ id: it.id, text: it.text })), channel: adapter.channel }, 10000)) || { results: {}, server: "offline" };
+          const out = (await sendWithin({ type: TG.MSG.SCORE_SERVER, items: ask.map((it) => ({ id: it.id, text: it.text })), channel: adapter.channel }, TG.PAGE_WAIT_MS)) || { results: {}, server: "offline" };
           if (scan !== s) return; // closed or restarted meanwhile
           for (const it of ask) s.serverCache.set(it.id, (out.results || {})[it.id] || null);
           s.server = out.server;

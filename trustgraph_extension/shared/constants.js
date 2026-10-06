@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.6";
+  TG.VERSION = "0.2.7";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -28,7 +28,7 @@
     save_history: true, // "Save to history" in the panel starts switched on
     theme: "dark", // "dark" | "light"
     engine: "remote", // "remote" = TrustGraph server at backend_url (local rules as fallback) | "local" = on-device only
-    backend_url: "http://127.0.0.1:8000", // the scoring engine (TrustGraph Python server)
+    backend_url: "https://trustgraphai-alpha.vercel.app", // the scoring engine (TrustGraph server; http://127.0.0.1:8000 when running it yourself)
     webapp_url: "", // the TrustGraph web app; empty = the TrustGraph server's workspace (or the built-in demo when on-device only)
     demo_data: false,
     debug: false,
@@ -57,11 +57,14 @@
     resultPage: "/app/detections/", // + id: "Open in workspace"
   };
 
-  TG.TIMEOUT_SCORE_MS = 4000; // one server attempt (a cold-starting server can take a few seconds)
+  // A server that has been idle (Vercel) needs several seconds to wake up and
+  // load the scam model before its first answer; later answers are instant.
+  TG.TIMEOUT_SCORE_MS = 10000; // one server attempt
   // The background always answers a check within this, with the on-device
-  // verdict if the server is still busy. Must stay below the page's 6 s wait
-  // (content/core.js), or the page gives up and says the background didn't answer.
-  TG.SCORE_DEADLINE_MS = 5000;
+  // verdict if the server is still busy. Must stay below the page's wait
+  // (TG.PAGE_WAIT_MS), or the page gives up and says the background didn't answer.
+  TG.SCORE_DEADLINE_MS = 11000;
+  TG.PAGE_WAIT_MS = 14000;
   TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, web app calls
   TG.SERVER_SETTINGS_MAX_AGE_MS = 60 * 1000;
   TG.HEARTBEAT_MS = 15 * 1000;

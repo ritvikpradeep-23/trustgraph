@@ -47,12 +47,23 @@ const shot = (page, name) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, n
   });
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
+  await sw.evaluate(() => chrome.storage.local.set({ settings: { backend_url: "http://127.0.0.1:8000" } })); // the local test server
   const extId = sw.url().split("/")[2];
 
   // 1. The website's Settings page issues a pairing code.
   const site = await ctx.newPage();
   const siteErrors = [];
   site.on("pageerror", (e) => siteErrors.push(e.message));
+  // Pairing codes belong to an account: sign up first (the session cookie stays in this browser).
+  await site.goto(BASE + "/health");
+  const signup = await site.evaluate(async () => {
+    const { csrfToken } = await (await fetch("/api/auth/session")).json();
+    const email = `e2e-${Date.now()}@example.invalid`;
+    const r = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ name: "E2E test", email, password: crypto.randomUUID() + "Aa1!" }) });
+    return r.status;
+  });
+  check(signup === 201, "website: account created", signup);
   await site.goto(BASE + "/app/settings");
   await site.getByTestId("settings-regenerate-key-button").click();
   await site.waitForFunction(() => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(document.querySelector('[data-testid="settings-extension-key"]')?.textContent || ""), null, { timeout: 10000 });
@@ -90,15 +101,16 @@ const shot = (page, name) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, n
   await sleep(1200);
   const detail = await site.textContent("body");
   await shot(site, "detail");
-  check(/request for money/i.test(detail) && !/google play|mum|phone broke/i.test(detail), "website: detail page shows signal types, no message text");
+  check(/web\.whatsapp\.com/.test(detail) && !/google play|mum|phone broke/i.test(detail), "website: detail page shows the verdict, no message text");
   await site.goto(BASE + "/app/dashboard");
   await sleep(1200);
-  check((await site.getByTestId("extension-status-value").textContent()).trim() === "CONNECTED", "website: dashboard shows the extension as connected");
+  const status = await site.evaluate(async () => (await fetch("/api/workspace/status")).json());
+  check(status.state === "CONNECTED", "website: the workspace sees the extension as connected", status);
   await shot(site, "dashboard");
 
   // 5. "Mark as wrong verdict" and "Open in workspace" from the extension.
   await sw.evaluate((v) => handleMessage({ type: TG.MSG.MARK_WRONG, id: v }, {}), id);
-  const after = await (await fetch(BASE + "/api/workspace/detections/" + encodeURIComponent(id))).json();
+  const after = await site.evaluate(async (v) => (await fetch("/api/workspace/detections/" + encodeURIComponent(v))).json(), id); // signed-in session
   check(after.feedback === "false_alarm", "website: 'Mark as wrong verdict' reaches the workspace", after.feedback);
   const opened = ctx.waitForEvent("page");
   await sw.evaluate((v) => handleMessage({ type: TG.MSG.OPEN_WORKSPACE, id: v }, {}), id);

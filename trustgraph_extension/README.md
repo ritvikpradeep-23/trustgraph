@@ -84,9 +84,12 @@ Settings → Engine and web app → **Scoring engine**:
   text never leaves the browser.
 - **Remote** (default): `RemoteEngine` POSTs `{text, channel}` to the
   TrustGraph API's `<Scoring server URL>/api/detect` (default
-  `http://127.0.0.1:8000`; start it with `uvicorn app.main:app` from the
-  repository root, with `DATABASE_URL` set to PostgreSQL) with a 3 s timeout
-  and one quiet retry. Nothing is stored by that call (no `submission_id` is
+  `https://trustgraphai-alpha.vercel.app`; to run it yourself, start
+  `uvicorn app.main:app` from the repository root with `DATABASE_URL` set to
+  PostgreSQL and set the URL to `http://127.0.0.1:8000`). It waits up to 10 s,
+  since an idle server takes a few seconds to wake, and retries once only if
+  the connection fails at once. The page always gets an answer within 11 s:
+  the on-device verdict if the server is still busy. Nothing is stored by that call (no `submission_id` is
   sent). From its answer:
   - `previous_report_matches`: the message is compared with every scam
     reported in the database. A match (similarity 0.72+) raises the verdict
@@ -332,7 +335,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.6.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.7.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,
