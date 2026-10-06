@@ -86,7 +86,8 @@
   }
 
   function footer() {
-    return el("div", { class: "foot" }, [el("span", { class: "tg-mono", text: "No message text stored · Results only" })]);
+    // The version shows which copy Chrome is running (handy after a git pull).
+    return el("div", { class: "foot" }, [el("span", { class: "tg-mono", text: `No message text stored · Results only · v${chrome.runtime.getManifest().version}` })]);
   }
 
   // ---------------------------------------------------------------------------
