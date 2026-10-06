@@ -180,6 +180,18 @@ function send(msg, sender = { tab: { url: "https://web.whatsapp.com/chat?x=secre
   const s2 = await send({ type: TG.MSG.SET_SETTINGS, patch: { bogus: 1, mode: "auto" } });
   check(!("bogus" in s2) && !("mode" in s2), "unknown and retired settings keys are ignored");
 
+  // A real workspace defaults to backend_url even if webapp_url is blank.
+  const calls = [];
+  ctx.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  await send({ type: TG.MSG.SET_SETTINGS, patch: { engine: "remote", backend_url: "http://127.0.0.1:8002", webapp_url: "" } });
+  await send({ type: TG.MSG.HEARTBEAT, source: "whatsapp" });
+  const beat = calls.find(c => c.url === "http://127.0.0.1:8002/api/status" && c.options.method === "POST");
+  check(beat && beat.options.headers.Authorization === "Bearer " + store.account.token, "heartbeat uses the fallback workspace URL and paired Bearer token");
+  check(beat && Object.keys(JSON.parse(beat.options.body)).sort().join() === "source,ts", "heartbeat contains only source and timestamp");
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");
   process.exit(failed ? 1 : 0);
 })().catch((e) => {

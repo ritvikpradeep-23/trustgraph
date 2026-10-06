@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.5";
+  TG.VERSION = "0.2.6";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -57,7 +57,11 @@
     resultPage: "/app/detections/", // + id: "Open in workspace"
   };
 
-  TG.TIMEOUT_SCORE_MS = 3000; // short: we fall back to the on-device check quietly
+  TG.TIMEOUT_SCORE_MS = 4000; // one server attempt (a cold-starting server can take a few seconds)
+  // The background always answers a check within this, with the on-device
+  // verdict if the server is still busy. Must stay below the page's 6 s wait
+  // (content/core.js), or the page gives up and says the background didn't answer.
+  TG.SCORE_DEADLINE_MS = 5000;
   TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, web app calls
   TG.SERVER_SETTINGS_MAX_AGE_MS = 60 * 1000;
   TG.HEARTBEAT_MS = 15 * 1000;

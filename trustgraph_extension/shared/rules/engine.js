@@ -378,6 +378,18 @@
       if (status === "error") out.serverError = "server error";
       return out;
     }
+    // The current backend already decided records first, then model if needed.
+    // Do not replace its final band/score with independently scored local rules.
+    // This also covers chat-batch results; old server formats retain the merge.
+    if (["records", "model"].includes(server.decisionSource)) {
+      const flags = server.band === "Low" ? [] : [{ruleId: "server", title: "TrustGraph analysis",
+        reason: server.explanation || "", severity: server.band === "High" ? "high" : "medium",
+        weight: server.score, messageId: local.flags[0] ? local.flags[0].messageId : null, evidence: null}];
+      return {...local, band: server.band, score: server.score, flags, hits: [], weakSignals: [],
+        contributions: [{label: server.decisionSource === "records" ? "Stored record match" : "Scam model fallback", weight: server.score}],
+        explanation: server.explanation || "", signals: server.signals || [], source: "server",
+        decisionSource: server.decisionSource, window: 0};
+    }
     const serverHigher = RANK[server.band] > RANK[local.band];
     const band = serverHigher ? server.band : local.band;
     const flags = local.flags.slice();

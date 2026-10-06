@@ -23,7 +23,8 @@
 //                 and reads its reported-scam matches (verdict.database);
 //                 also accepts {riskLevel, score 0-100, explanation,
 //                 signals} or the older {band, score 0..1, explanation,
-//                 signals}. The local rules still run; the higher verdict wins.
+//                 signals}. Records-first API results are final. Local rules
+//                 are the offline/unavailable fallback; legacy answers still merge.
 // background.js picks one from Settings (engine: "local" | "remote").
 (function (root) {
   "use strict";
@@ -148,7 +149,7 @@
     const sensitivity = opts.sensitivity || "balanced";
     // Balanced keeps the engine's own band (it also knows the one-sign cap
     // and a server's raised verdict); other sensitivities re-threshold.
-    let riskLevel = sensitivity === "balanced" ? String(result.band || "Low").toLowerCase() : levelFor(score, sensitivity);
+    let riskLevel = sensitivity === "balanced" || ["records", "model"].includes(result.decisionSource) ? String(result.band || "Low").toLowerCase() : levelFor(score, sensitivity);
     if (!(riskLevel in LEVEL_RANK)) riskLevel = "caution";
     const hits = result.hits || result.flags || [];
     // combine() adds a "server" flag (not a hit) when the server raised the verdict.
@@ -165,7 +166,7 @@
       id: opts.id || newId(),
       riskLevel,
       score,
-      explanation: explain(result, riskLevel, signals),
+      explanation: ["records", "model"].includes(result.decisionSource) ? result.explanation : explain(result, riskLevel, signals),
       signals,
       continuity: opts.continuity || { state: "single", text: "Single message: there's no earlier thread to compare with." },
       similarity: similarityFrom(result),
@@ -264,29 +265,28 @@
   //
   // A server may calibrate its own cut-offs (the TrustGraph Python server's
   // models/risk_bands.json puts Caution at 0.68 and High at 0.91), while the
-  // extension shows every score on one scale: Low 0-34, Caution 35-69, High
-  // 70-100. The server's verdict is kept and its score is placed inside that
-  // verdict's range, so the level and the number never disagree
-  // (e.g. server "Caution, 0.89" shows as Caution 69, not Caution 89).
-  const BAND_RANGE = { Low: [0, (FLAG - 1) / 100], Caution: [FLAG / 100, 0.69], High: [0.7, 1] };
-  const inBand = (band, score) => Math.max(BAND_RANGE[band][0], Math.min(BAND_RANGE[band][1], score));
+  // local rules use different cutoffs. Keep the server's calibrated band and
+  // actual score independently; the number is evidence, not fraud probability.
+  // Preserve the server's numeric evidence. Its calibrated cutoffs may differ
+  // from the local rules; flattening every Caution score to 69 hid variation.
+  const inBand = (_band, score) => Math.max(0, Math.min(1, score));
   // The TrustGraph API's POST /api/detect (app/api/detect.py): a model
   // verdict once a model is connected (until then risk_level is "PENDING"
   // with no score: never shown as a verdict), and the reported scams in the
   // database that the message matches (previous_report_matches, similarity
   // 0.72 and up). A close match raises the verdict: Caution, or High from
   // 0.9. {none: true} = checked, nothing to add.
-  const API_LEVEL = { LOW: "Low", MEDIUM: "Caution", CAUTION: "Caution", HIGH: "High" };
+  const API_LEVEL = { SAFE: "Low", LOW: "Low", MEDIUM: "Caution", CAUTION: "Caution", HIGH: "High", CRITICAL: "High" };
   function databaseOf(data) {
     if (!data || !Array.isArray(data.previous_report_matches)) return null;
-    const matches = data.previous_report_matches.filter((m) => m && typeof m.similarity_score === "number").sort((a, b) => b.similarity_score - a.similarity_score);
+    const matches = data.previous_report_matches.filter((m) => m && Number.isFinite(m.similarity_score) && m.similarity_score >= (Number.isFinite(data.match_threshold) ? data.match_threshold : .712) && m.similarity_score <= 1).sort((a, b) => b.similarity_score - a.similarity_score);
     const top = matches[0];
     return { checked: true, matches: matches.length, top: top ? { similarity: top.similarity_score, reportType: String(top.report_type || "scam"), status: String(top.status || "") } : null };
   }
   function normalizeDetect(data) {
     const database = databaseOf(data);
     const level = API_LEVEL[String(data.risk_level || "").toUpperCase()];
-    const model = level && typeof data.risk_score === "number" ? { band: level, score: inBand(level, data.risk_score > 1 ? data.risk_score / 100 : data.risk_score) } : null;
+    const model = level && Number.isFinite(data.risk_score) && data.risk_score >= 0 && data.risk_score <= 1 ? { band: level, score: data.risk_score } : null;
     const top = database.top;
     const matchBand = top ? (top.similarity >= 0.9 ? "High" : "Caution") : null;
     const match = top ? { band: matchBand, score: inBand(matchBand, top.similarity) } : null;
@@ -294,8 +294,18 @@
     const best = !model ? match : !match || LEVEL_RANK[model.band.toLowerCase()] >= LEVEL_RANK[match.band.toLowerCase()] ? model : match;
     const matchText = top ? ["synthetic_demo", "synthetic_dataset"].includes(top.status) ? `Matches a synthetic ${top.status === "synthetic_dataset" ? "ScamShield dataset" : "demo"} scam pattern (${Math.round(top.similarity * 100)}% text similarity; not fraud probability).` : `Matches ${database.matches === 1 ? "a scam" : database.matches + " scams"} reported to TrustGraph before (${Math.round(top.similarity * 100)}% similar).` : "";
     const reasons = model && Array.isArray(data.reasons) ? data.reasons.filter((r) => typeof r === "string").join(" ") : "";
-    const signals = top ? [{ name: "precedent", score: top.similarity, explanation: matchText }, { name: "similarity", score: top.similarity, explanation: matchText }] : [];
-    return { band: best.band, score: best.score, explanation: best === match ? matchText : reasons || matchText, signals, database };
+    const signals = data.signals && typeof data.signals === "object" ? Object.entries(data.signals)
+      .filter(([, value]) => Number.isFinite(value) && value >= 0 && value <= 1)
+      .map(([name, score]) => ({ name, score, explanation: "Original engine signal; not fraud probability." })) : [];
+    if (top) for (const name of ["precedent", "similarity"]) {
+      const existing = signals.find((s) => s.name === name);
+      if (!existing || existing.score < top.similarity) {
+        if (existing) signals.splice(signals.indexOf(existing), 1);
+        signals.push({ name, score: top.similarity, explanation: matchText });
+      }
+    }
+    return { band: best.band, score: best.score, explanation: best === match ? matchText : reasons || matchText, signals, database,
+      decisionSource: model && ["records", "model"].includes(data.decision_source) ? data.decision_source : null };
   }
 
   function normalizeRemote(data) {

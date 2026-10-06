@@ -55,6 +55,10 @@
         await call("GET", TG.WEBAPP.results + "?limit=1");
         return true;
       },
+      async heartbeat(source) {
+        needToken();
+        await call("POST", TG.ENDPOINTS.status, { source: String(source || "extension"), ts: Date.now() });
+      },
       async saveResult(r) {
         needToken();
         if (!Result.isValid(r)) throw new ApiError("refusing to send an invalid Result");
