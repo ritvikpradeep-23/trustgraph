@@ -19,10 +19,11 @@
 //
 // Two engines ship:
 //   LocalEngine   the on-device rules (shared/rules/), works offline
-//   RemoteEngine  POSTs {message_text, channel} to a configurable URL and
-//                 accepts {riskLevel, score 0-100, explanation, signals}
-//                 or the older {band, score 0..1, explanation, signals};
-//                 the local rules still run and the higher verdict wins.
+//   RemoteEngine  POSTs {text, channel} to the TrustGraph API (/api/detect)
+//                 and reads its reported-scam matches (verdict.database);
+//                 also accepts {riskLevel, score 0-100, explanation,
+//                 signals} or the older {band, score 0..1, explanation,
+//                 signals}. The local rules still run; the higher verdict wins.
 // background.js picks one from Settings (engine: "local" | "remote").
 (function (root) {
   "use strict";
@@ -269,8 +270,37 @@
   // (e.g. server "Caution, 0.89" shows as Caution 69, not Caution 89).
   const BAND_RANGE = { Low: [0, (FLAG - 1) / 100], Caution: [FLAG / 100, 0.69], High: [0.7, 1] };
   const inBand = (band, score) => Math.max(BAND_RANGE[band][0], Math.min(BAND_RANGE[band][1], score));
+  // The TrustGraph API's POST /api/detect (app/api/detect.py): a model
+  // verdict once a model is connected (until then risk_level is "PENDING"
+  // with no score: never shown as a verdict), and the reported scams in the
+  // database that the message matches (previous_report_matches, similarity
+  // 0.72 and up). A close match raises the verdict: Caution, or High from
+  // 0.9. {none: true} = checked, nothing to add.
+  const API_LEVEL = { LOW: "Low", MEDIUM: "Caution", CAUTION: "Caution", HIGH: "High" };
+  function databaseOf(data) {
+    if (!data || !Array.isArray(data.previous_report_matches)) return null;
+    const matches = data.previous_report_matches.filter((m) => m && typeof m.similarity_score === "number").sort((a, b) => b.similarity_score - a.similarity_score);
+    const top = matches[0];
+    return { checked: true, matches: matches.length, top: top ? { similarity: top.similarity_score, reportType: String(top.report_type || "scam"), status: String(top.status || "") } : null };
+  }
+  function normalizeDetect(data) {
+    const database = databaseOf(data);
+    const level = API_LEVEL[String(data.risk_level || "").toUpperCase()];
+    const model = level && typeof data.risk_score === "number" ? { band: level, score: inBand(level, data.risk_score > 1 ? data.risk_score / 100 : data.risk_score) } : null;
+    const top = database.top;
+    const matchBand = top ? (top.similarity >= 0.9 ? "High" : "Caution") : null;
+    const match = top ? { band: matchBand, score: inBand(matchBand, top.similarity) } : null;
+    if (!model && !match) return { none: true, database };
+    const best = !model ? match : !match || LEVEL_RANK[model.band.toLowerCase()] >= LEVEL_RANK[match.band.toLowerCase()] ? model : match;
+    const matchText = top ? `Matches ${database.matches === 1 ? "a scam" : database.matches + " scams"} reported to TrustGraph before (${Math.round(top.similarity * 100)}% similar).` : "";
+    const reasons = model && Array.isArray(data.reasons) ? data.reasons.filter((r) => typeof r === "string").join(" ") : "";
+    const signals = top ? [{ name: "precedent", score: top.similarity, explanation: matchText }, { name: "similarity", score: top.similarity, explanation: matchText }] : [];
+    return { band: best.band, score: best.score, explanation: best === match ? matchText : reasons || matchText, signals, database };
+  }
+
   function normalizeRemote(data) {
     if (!data || typeof data !== "object") return null;
+    if (Array.isArray(data.previous_report_matches)) return normalizeDetect(data);
     if (typeof data.riskLevel === "string" && typeof data.score === "number") {
       const level = data.riskLevel.toLowerCase();
       if (!(level in LEVEL_RANK)) return null;
@@ -315,15 +345,21 @@
         if (!text) return { empty: true };
         const local = Engine.analyze(text, { sender: input.sender || null, senderName: input.senderName || null, links: input.links, id: input.id });
         let merged;
+        let database = null;
         try {
-          const res = await fetchImpl(url, { message_text: text, channel: input.channel || "other" }, timeoutMs);
+          // `text` for the TrustGraph API (/api/detect); `message_text` for older servers.
+          const res = await fetchImpl(url, { text, message_text: text, channel: input.channel || "other" }, timeoutMs);
           const remote = res.ok ? normalizeRemote(res.data) : null;
-          merged = remote ? Engine.combine(local, remote, "server") : Engine.combine(local, null, "error");
+          database = remote && remote.database ? remote.database : null;
+          if (remote && remote.none) merged = { ...Engine.combine(local, null, "server"), source: "server" }; // checked; nothing to add
+          else merged = remote ? Engine.combine(local, remote, "server") : Engine.combine(local, null, "error");
           if (!remote) merged.serverError = res.ok ? "unexpected response" : "HTTP " + res.status;
         } catch (_) {
           merged = Engine.combine(local, null, "offline");
         }
-        return fromEngine(merged, { ...opts, engine: "remote" });
+        const verdict = fromEngine(merged, { ...opts, engine: "remote" });
+        if (database) verdict.database = database; // reported-scam matches (shown, never stored)
+        return verdict;
       },
     };
   }

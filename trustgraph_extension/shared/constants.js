@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.3";
+  TG.VERSION = "0.2.4";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -34,12 +34,14 @@
     debug: false,
   };
 
-  // Scoring-engine paths (on backend_url).
+  // TrustGraph API paths (on backend_url; the FastAPI app in app/main.py).
   TG.ENDPOINTS = {
-    score: "/api/score", // POST {message_text, channel}
+    score: "/api/detect", // POST {text, channel} -> risk + previous_report_matches (reported-scam pattern matching)
+    media: "/api/media/check", // POST {type, payload, hostname, timestamp, capture} -> known-fakes fingerprint match
+    dbHealth: "/health/database", // GET: backend -> PostgreSQL round trip
     settings: "/api/settings", // GET  (optional)
     status: "/api/status", // POST {source, ts} heartbeat (optional)
-    dashboard: "/", // reachability check
+    dashboard: "/health", // reachability check
   };
 
   // Web app paths (on webapp_url). Only verdicts and metadata go here,
@@ -62,7 +64,7 @@
   TG.MAX_TEXT = 4000; // characters sent for one check
   TG.STATS_KEEP_DAYS = 90;
   TG.HISTORY_MAX = 2000; // newest kept when over
-  TG.SERVER_CONCURRENCY = 4; // parallel /api/score calls during a chat scan
+  TG.SERVER_CONCURRENCY = 4; // parallel /api/detect calls during a chat scan
   TG.MAX_SCAN_MESSAGES = 40; // most recent incoming messages scored per scan
 
   // Risk score (0-100) from which a message is flagged (Caution) at the

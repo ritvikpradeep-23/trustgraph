@@ -518,10 +518,17 @@
           el("p", { class: "cs-title" }, [el("span", { text: "Similarity to known patterns" }), el("span", { class: "tg-mono", text: pct + "%" })]),
           el("div", { class: "meter", role: "img", "aria-label": `Similarity to known scam patterns: ${pct} percent` }, [el("i", { style: `width:${pct}%` })]),
           el("p", { class: "cs-text", style: "grid-column:2", text: sim.text }),
+          v.database && !(v.database.matches && /reported to TrustGraph/.test(sim.text)) ? el("p", { class: "cs-text", style: "grid-column:2", text: databaseText(v.database) }) : null,
         ]),
       ]),
       el("p", { class: "tg-mono", style: "margin:10px 0 0;font-size:10.5px", text: "Computed from verdicts and metadata; earlier messages aren't stored." }),
     ]);
+  }
+
+  // The reported scams in the TrustGraph database (POST /api/detect).
+  function databaseText(db) {
+    if (!db.matches) return "Checked against the scams reported to TrustGraph: no match.";
+    return `Matches ${db.matches === 1 ? "a scam" : db.matches + " scams"} reported to TrustGraph (${Math.round(db.top.similarity * 100)}% similar${db.top.status ? ", " + db.top.status : ""}).`;
   }
 
   // "How this was decided": the score and every contribution to it.
@@ -542,6 +549,7 @@
         ? el("div", { class: "why", id: "tg-why" }, [
             el("p", { text: how }),
             el("ul", null, items.map((t) => el("li", { text: t }))),
+            v.database ? el("p", { style: "margin-top:8px", text: databaseText(v.database) }) : null,
             s.mode === "chat" ? el("p", { style: "margin-top:8px", text: "Your own messages aren't scored; others' are checked alone and as runs from the same sender." }) : null,
           ])
         : null,

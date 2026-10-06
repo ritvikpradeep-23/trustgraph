@@ -161,7 +161,7 @@ async function scoreMessage(text, channel, meta = {}) {
   const input = { text: String(text || "").slice(0, TG.MAX_TEXT), channel, sender: meta.sender || null, senderName: meta.senderName || null, links };
   const verdict = await engineFor(settings).scoreMessage(input, { sensitivity: settings.sensitivity });
   if (!verdict.empty && settings.engine === "remote") {
-    await chrome.storage.local.set({ last_score_source: verdict.source === "server" ? "server" : verdict.offline ? "basic" : "error" });
+    await chrome.storage.local.set({ last_score_source: verdict.source === "server" || verdict.database ? "server" : verdict.offline ? "basic" : "error" });
   }
   return verdict;
 }
@@ -186,10 +186,12 @@ async function serverBatch(items, channel) {
         continue;
       }
       try {
-        const res = await postWithRetry(url, { message_text: String(item.text).replace(/\s+/g, " ").trim().slice(0, TG.MAX_TEXT), channel: channel || "other" }, TG.TIMEOUT_SCORE_MS);
+        const text = String(item.text).replace(/\s+/g, " ").trim().slice(0, TG.MAX_TEXT);
+        const res = await postWithRetry(url, { text, message_text: text, channel: channel || "other" }, TG.TIMEOUT_SCORE_MS);
         const data = res.ok ? Verdict.normalizeRemote(res.data) : null;
         if (!data) errored = true;
-        results[item.id] = data;
+        // {none}: checked against the reported scams, nothing to add.
+        results[item.id] = data && data.none ? null : data;
       } catch (err) {
         if (!(err instanceof OfflineError)) throw err;
         offline = true;

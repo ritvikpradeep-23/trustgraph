@@ -538,9 +538,17 @@
     return row("database", "No match in the known-fakes database", "It isn't a copy of anything already in the database. New fakes still need the model's answer.");
   }
 
+  // Text: the reported scams in the database (/api/detect).
+  function reportedRow(v) {
+    const db = v.database;
+    if (!db) return row("database", "Reported scams database", v.offline ? "Not checked: the TrustGraph server isn't reachable." : "Not checked: the server didn't answer.");
+    if (!db.matches) return row("database", "No match in the reported scams database", "It isn't like any scam reported to TrustGraph so far.");
+    return row("fingerprint", `Matches ${db.matches === 1 ? "a reported scam" : db.matches + " reported scams"}`, `Similarity ${Math.round(db.top.similarity * 100)}% · ${db.top.reportType}${db.top.status ? " · " + db.top.status : ""}`, "match");
+  }
+
   function modelRow(d) {
     if (!d) return row("activity", "Deepfake model", "No answer.");
-    if (d.result === "not_checked") return row("activity", "Deepfake model: not checked", d.reason || "No model is configured on the server.");
+    if (d.result === "not_checked") return row("activity", "Deepfake model: not connected yet", d.reason || "No model is configured on the server, so no score was produced.");
     if (d.result === "inconclusive") return row("activity", "Deepfake model: inconclusive", `No face found in ${d.frames_examined} frame${d.frames_examined === 1 ? "" : "s"}, so nothing was scored.`);
     const label = d.result === "likely_fake" ? "Likely fake" : "Likely real";
     return row(d.result === "likely_fake" ? "octagonAlert" : "circleCheck", `Deepfake model: ${label}`, `Confidence ${Math.round((d.confidence || 0) * 100)}% · ${d.faces_examined} face${d.faces_examined === 1 ? "" : "s"} in ${d.frames_examined} frame${d.frames_examined === 1 ? "" : "s"}${d.mock ? " · demo model" : ""}`);
@@ -576,7 +584,8 @@
   }
 
   function showResult(kind, res) {
-    debug("result", kind, res && res.error ? "error=" + res.error : `capture=${res.capture || "-"} model=${(res.deepfake && res.deepfake.result) || (res.verdict && res.verdict.riskLevel) || "-"} db_match=${res.fingerprint ? res.fingerprint.db_match : "-"}`);
+    const dbMatch = res && res.fingerprint ? res.fingerprint.db_match : res && res.verdict && res.verdict.database ? res.verdict.database.matches > 0 : "-";
+    debug("result", kind, res && res.error ? "error=" + res.error : `capture=${res.capture || "-"} model=${(res.deepfake && res.deepfake.result) || (res.verdict && res.verdict.riskLevel) || "-"} db_match=${dbMatch}`);
     if (!res || res.error) {
       renderCard(kind, [row(res && res.error === "offline" ? "wifiOff" : "info", "Couldn't check this", (res && res.message) || "No answer from TrustGraph.")]);
       return;
@@ -586,7 +595,7 @@
       if (v.empty) return renderCard(kind, [row("info", "Nothing to check", "No readable text here.")]);
       const level = v.riskLevel || "low";
       const rows = [{ icon: "gauge", chip: { level, text: `${UI.LEVELS[level].label} · ${v.score}` }, detail: v.explanation || "" }];
-      rows.push(res.engine === "local" ? row("database", "Known-fakes database", "Not checked: Settings → Engine is on-device only.") : dbRow(res.fingerprint));
+      rows.push(res.engine === "local" ? row("database", "Reported scams database", "Not checked: Settings → Engine is on-device only.") : reportedRow(v));
       return renderCard(kind, rows);
     }
     const frames = kind === "video" ? `${res.frames} frames over ${CFG.videoSeconds} s${res.paused ? " (the video was paused, so they may be identical)" : ""}. ` : "";

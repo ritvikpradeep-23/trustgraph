@@ -76,18 +76,25 @@ Settings → Engine and web app → **Scoring engine**:
 
 - **On-device**: `LocalEngine`, the rules in `shared/rules/`. Works offline;
   text never leaves the browser.
-- **Remote** (default): `RemoteEngine` POSTs `{message_text, channel}` to
-  `<Scoring server URL>/api/score` (default `http://127.0.0.1:8000`) with a
-  3 s timeout and one quiet retry. It accepts either
+- **Remote** (default): `RemoteEngine` POSTs `{text, channel}` to the
+  TrustGraph API's `<Scoring server URL>/api/detect` (default
+  `http://127.0.0.1:8000`; start it with `uvicorn app.main:app` from the
+  repository root, with `DATABASE_URL` set to PostgreSQL) with a 3 s timeout
+  and one quiet retry. Nothing is stored by that call (no `submission_id` is
+  sent). From its answer:
+  - `previous_report_matches`: the message is compared with every scam
+    reported in the database. A match (similarity 0.72+) raises the verdict
+    to Caution (High from 0.90), feeds "Similarity to known patterns", and is
+    shown as `verdict.database` ("Matches a scam reported to TrustGraph").
+    No match: "Checked against the scams reported to TrustGraph: no match".
+  - `risk_level` / `risk_score`: used once a real model is connected. Until
+    then the API answers `PENDING` with no score, which is never shown as a
+    verdict.
 
-  ```json
-  {"riskLevel": "high", "score": 86, "explanation": "...", "signals": [{"name": "similarity", "score": 0.9}]}
-  {"band": "High", "score": 0.86, "explanation": "...", "signals": [...]}
-  ```
-
-  The on-device rules still run; the higher verdict wins. If the server is
-  down or errors, the on-device verdict is shown with "Server offline ·
-  on-device rules only".
+  It also still accepts the older `{"riskLevel": "high", "score": 86, ...}`
+  and `{"band": "High", "score": 0.86, ...}` answers. The on-device rules
+  always run; the higher verdict wins. If the server is down or errors, the
+  on-device verdict is shown with "Server offline · on-device rules only".
 
 To plug in a different engine, give it the same shape (`scoreMessage(input,
 {sensitivity}) -> Promise<Verdict>`, see `LocalEngine` in
@@ -154,20 +161,23 @@ timings are in `TG.UNIVERSAL` next to it).
   protected video), the background takes a screenshot of the tab and crops it
   to the element (`background-universal.js`, `chrome.tabs.captureVisibleTab`).
   Video: 8 frames over 4 seconds while it plays, with their timestamps.
-- **Server:** everything goes to the existing `POST /api/score` as
-  `{type, payload, hostname, timestamp}`. Text keeps its usual verdict.
-  Images and frames get the existing deepfake model's answer. Every answer
-  also has a separate `fingerprint: {db_match, similarity, matched_record_id}`
-  from the known-fakes database. Images and video need the server; with
+- **Server:** text goes through the same check as a shield (`/api/detect`,
+  reported-scam matching). Images and frames go to `POST /api/media/check`
+  as `{type, payload, hostname, timestamp, capture}` and come back with
+  `fingerprint: {db_match, similarity, matched_record_id}` from the
+  known-fakes table, and `deepfake` (says "not connected" until a model is
+  connected; no score is made up). Images and video need the server; with
   Settings → Engine on "on-device only", nothing is sent.
-- **Database:** `python scripts/seed_fingerprints.py --demo` loads demo items;
-  add your own in `data/known_fakes/manifest.json`. `GET /health/fingerprint`
-  proves the backend → database round trip, and the background's
-  `Universal.health()` proves extension → backend → database.
+- **Database (PostgreSQL):** `python scripts/seed_fingerprints.py --demo`
+  adds two reported scam messages and one demo image; add your own in
+  `data/known_fakes/manifest.json`. `GET /health/database` proves the
+  backend → PostgreSQL round trip, and the background's `Universal.health()`
+  proves extension → backend → database.
 - **Debug:** `localStorage.setItem("trustgraph-debug-scan", "1")` in a page's
   console logs what got a shield and each result's summary.
 - **Test:** `python tests/universal_e2e_server.py` is started by
-  `node test/universal-e2e.js` (needs Playwright). The per-site checklist is
+  `node test/universal-e2e.js` (needs Playwright, and `DATABASE_URL` pointing
+  at a throwaway PostgreSQL database). The per-site checklist is
   `docs/site-compat-checklist.md` in the repository root.
 - **Privacy:** screenshots can contain private conversations, so they go only
   to the backend URL in Settings, are decoded in memory there, and are never
@@ -316,7 +326,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.3.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.4.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,

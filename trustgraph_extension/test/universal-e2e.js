@@ -1,10 +1,12 @@
 // Universal click-to-check, end to end: the real extension in Chromium, the
-// real backend (tests/universal_e2e_server.py: temporary database seeded
-// with a known image and two known scam texts) and local pages that
+// real backend (tests/universal_e2e_server.py: app.main against the
+// PostgreSQL database in DATABASE_URL, seeded with a known image and two
+// reported scam messages) and local pages that
 // reproduce what real sites do (cross-origin images without CORS, CSS
 // backgrounds, canvas, video, iframes, open shadow DOM, lazy/infinite
 // content, overlays over photos and players, SPA navigation).
 //
+//   DATABASE_URL=postgresql+psycopg://...(a throwaway database) \
 //   NODE_PATH=<folder with playwright> node trustgraph_extension/test/universal-e2e.js
 //
 // A seeded image that comes back as db_match=true after a SCREENSHOT crop
@@ -44,7 +46,7 @@ async function startServer() {
     await sleep(500);
   }
   // Warm the text engine so the extension's 3 s scoring timeout isn't spent loading models.
-  await fetch("http://127.0.0.1:8000/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message_text: "warm up", channel: "other" }) });
+  await fetch("http://127.0.0.1:8000/api/detect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "warm up", channel: "other" }) });
   return { proc, log };
 }
 
@@ -220,7 +222,14 @@ function startSites() {
 
   // --- 5. extension -> backend -> database ----------------------------------
   const health = await sw.evaluate(() => Universal.health());
-  check(health.ok === true && health.probe_found === true, "health: extension -> backend -> database round trip", health);
+  check(health.ok === true && health.probe_found === true && health.reports >= 2, "health: extension -> backend -> database round trip", health);
+
+  // --- 6. the shield's own check (any adapter site) uses /api/detect matching ---
+  const retyped = "DEAR CUSTOMER!! Your SBI KYC is pending, and your account will be blocked today... share the OTP to verify immediately";
+  const hit = await sw.evaluate((t) => scoreMessage(t, "whatsapp"), retyped);
+  check(hit.database && hit.database.matches >= 1 && hit.riskLevel !== "low" && hit.source === "server", "shield check: a re-typed reported scam matches the database", { level: hit.riskLevel, db: hit.database });
+  const calm = await sw.evaluate((t) => scoreMessage(t, "whatsapp"), "Are we still on for lunch on Sunday at the usual place near the station?");
+  check(calm.database && calm.database.checked && calm.database.matches === 0 && calm.riskLevel === "low" && !calm.serverError, "shield check: an ordinary message is checked against the database, no match", { level: calm.riskLevel, db: calm.database });
 
   console.log("\nserver saw:\n " + media().slice(-14).join("\n "));
   await ctx.close();

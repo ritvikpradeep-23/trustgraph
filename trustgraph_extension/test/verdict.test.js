@@ -53,6 +53,24 @@ const check = (ok, name) => {
   check(lowHigh.riskLevel === "high" && lowHigh.score >= 70, `server "High 0.40" shows as High ${lowHigh.score}`);
   check(V.normalizeRemote({ riskLevel: "weird", score: 3 }) === null && V.normalizeRemote({ nope: 1 }) === null, "unknown answers are rejected");
 
+  // The TrustGraph API (/api/detect): a pending model is never a verdict;
+  // reported-scam matches are shown and raise the verdict.
+  const detect = (matches, extra = {}) => ({ ok: true, status: 200, data: { detection_id: "det_1", risk_score: null, risk_level: "PENDING", signals: {}, reasons: ["pending"], previous_report_matches: matches, ...extra } });
+  const calmText = "Are we still on for lunch on Sunday at the usual place?";
+  let sent = null;
+  const spy = (r) => async (url, body) => ((sent = body), r);
+  const none = await V.RemoteEngine("u", spy(detect([]))).scoreMessage({ text: calmText, channel: "whatsapp" });
+  check(sent && sent.text === calmText && sent.channel === "whatsapp", "/api/detect gets {text, channel}");
+  check(none.riskLevel === "low" && none.database && none.database.checked && none.database.matches === 0 && !none.serverError, "no match + pending model: on-device verdict, database checked, no error");
+  const m = (sim) => [{ report_id: "rep_1", submission_id: "sub_1", report_type: "scam", status: "confirmed", similarity_score: sim }];
+  const close = await V.RemoteEngine("u", fake(detect(m(0.8)))).scoreMessage({ text: calmText, channel: "whatsapp" });
+  check(close.riskLevel === "caution" && close.database.matches === 1 && /reported to TrustGraph/.test(close.similarity.text), `a 0.80 match raises an ordinary-looking message to Caution (${close.riskLevel} ${close.score})`);
+  const exact = await V.RemoteEngine("u", fake(detect(m(0.95)))).scoreMessage({ text: calmText, channel: "whatsapp" });
+  check(exact.riskLevel === "high" && exact.similarity.score === 95, `a 0.95 match is High (${exact.riskLevel} ${exact.score})`);
+  const model = V.normalizeRemote(detect([], { risk_level: "HIGH", risk_score: 0.9, reasons: ["model says so"] }).data);
+  check(model.band === "High" && model.score >= 0.7, "a connected model's verdict is used once it has a score");
+  check(V.normalizeRemote(detect([]).data).none === true, "pending model + no match = nothing to add");
+
   // Whole chat: worst message wins, signals pooled, continuity from metadata.
   const E = require("../shared/rules/engine.js");
   const friend = "Ravi";

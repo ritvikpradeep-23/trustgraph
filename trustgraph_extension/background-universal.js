@@ -3,14 +3,13 @@
 // reached through three messages:
 //
 //   UNIVERSAL_CHECK    text  -> the existing engines (local rules, plus the
-//                              server when Settings -> Engine is remote),
-//                              exactly like a shield check; the request also
-//                              carries {type, payload, hostname, timestamp}
-//                              so the server returns its database match.
+//                              TrustGraph API's /api/detect when Settings ->
+//                              Engine is remote), exactly like a shield
+//                              check, including its reported-scam matches.
 //                      image/video -> POST {type, payload, hostname,
-//                              timestamp, capture} to the same /api/score.
-//                              Media needs the server; "on-device only"
-//                              sends nothing.
+//                              timestamp, capture} to /api/media/check (the
+//                              known-fakes fingerprints). Media needs the
+//                              server; "on-device only" sends nothing.
 //   UNIVERSAL_FETCH    download an image by its address from here (the
 //                      service worker isn't bound by the page's CORS, and the
 //                      page gets no console errors), scaled down to JPEG.
@@ -27,7 +26,7 @@ const Universal = (() => {
   let captureQueue = Promise.resolve();
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const scoreUrl = (settings) => settings.backend_url.replace(/\/+$/, "") + TG.ENDPOINTS.score;
+  const apiUrl = (settings, path) => settings.backend_url.replace(/\/+$/, "") + path;
   function hostOf(url) {
     try {
       return new URL(url).hostname;
@@ -44,20 +43,13 @@ const Universal = (() => {
     const kind = msg.kind;
 
     if (kind === "text") {
+      // The same scoring as a shield check (scoreMessage in background.js):
+      // on-device rules + /api/detect with its reported-scam matches.
       const text = String(msg.text || "").slice(0, TG.MAX_TEXT);
-      let fingerprint = null;
-      // The existing RemoteEngine, with the new fields added to its request
-      // and the database match read from its answer.
-      const post = async (url, body, timeout) => {
-        const res = await postWithRetry(url, { ...body, type: "text", payload: body.message_text, hostname, timestamp: Date.now(), capture: "direct" }, timeout);
-        if (res && res.data && res.data.fingerprint) fingerprint = res.data.fingerprint;
-        return res;
-      };
-      const engine = settings.engine === "local" ? Verdict.LocalEngine : Verdict.RemoteEngine(scoreUrl(settings), post, TG.TIMEOUT_SCORE_MS);
-      const verdict = await engine.scoreMessage({ text, channel: "other" }, { sensitivity: settings.sensitivity });
+      const verdict = await scoreMessage(text, "other");
       if (verdict.empty) return { kind, verdict };
       const { record, saved } = await handleVerdict(verdict, { channel: "other", url: pageUrl, text });
-      return { kind, verdict, record, saved, fingerprint, engine: settings.engine };
+      return { kind, verdict, record, saved, engine: settings.engine };
     }
 
     if (kind !== "image" && kind !== "video") return { error: "bad", message: "Unknown content type." };
@@ -67,12 +59,13 @@ const Universal = (() => {
     const body = { type: kind, payload: msg.payload, hostname, timestamp: Date.now(), capture: msg.capture || "direct" };
     let res;
     try {
-      res = await fetchJson(scoreUrl(settings), { method: "POST", body, timeout: TG.UNIVERSAL.timeoutMs });
+      res = await fetchJson(apiUrl(settings, TG.ENDPOINTS.media), { method: "POST", body, timeout: TG.UNIVERSAL.timeoutMs });
     } catch (_) {
-      return { kind, error: "offline", message: `Couldn't reach the TrustGraph server at ${settings.backend_url}. Start it with python run_server.py.` };
+      return { kind, error: "offline", message: `Couldn't reach the TrustGraph server at ${settings.backend_url}. Start it with: uvicorn app.main:app` };
     }
     if (!res.ok || !res.data) {
-      const why = res.data && (res.data.detail || res.data.error);
+      const detail = res.data && (res.data.detail || res.data.error);
+      const why = Array.isArray(detail) ? detail.map((d) => d && d.msg).filter(Boolean).join("; ") : detail;
       return { kind, error: "server", message: `The server couldn't check this (${why || "HTTP " + res.status}).` };
     }
     return { kind, ...res.data, capture: msg.capture || "direct" };
@@ -142,12 +135,12 @@ const Universal = (() => {
     return job.catch((err) => ({ error: String((err && err.message) || err) }));
   }
 
-  // GET /health/fingerprint: the server writes a probe fingerprint, finds
-  // it in the database and rolls it back.
+  // GET /health/database: the server counts the reported scams and known
+  // fakes, and writes, finds and rolls back a probe record in PostgreSQL.
   async function health() {
     const settings = await readSettings();
     try {
-      const res = await fetchJson(settings.backend_url.replace(/\/+$/, "") + "/health/fingerprint", { timeout: 5000 });
+      const res = await fetchJson(apiUrl(settings, TG.ENDPOINTS.dbHealth), { timeout: 5000 });
       if (!res.ok || !res.data) return { ok: false, stage: "backend", message: "HTTP " + res.status };
       return { ...res.data, stage: res.data.ok ? "database" : "database-error", backend: settings.backend_url };
     } catch (_) {

@@ -15,11 +15,12 @@ works on a site, and what has been checked so far.
 | f | No new console errors | DevTools → Console, with TrustGraph on and off: no new red errors. |
 | g | Works after SPA navigation / scrolling | Open another post or chat without reloading, scroll to load more content, then repeat a–d on the new content. |
 
-**Setup for a manual run:** start the server (`python run_server.py`), seed demo items
-(`python scripts/seed_fingerprints.py --demo`), reload TrustGraph in `chrome://extensions`, and in
+**Setup for a manual run:** with `DATABASE_URL` set to your PostgreSQL database (`.env`), seed
+demo items (`python scripts/seed_fingerprints.py --demo`), start the server
+(`uvicorn app.main:app`), reload TrustGraph in `chrome://extensions`, and in
 the site's DevTools console run `localStorage.setItem("trustgraph-debug-scan", "1")`. Each shield
 and result is then logged as `[TrustGraph universal] …` (summaries only, never content).
-`GET http://127.0.0.1:8000/health/fingerprint` should answer `{"ok": true, …}`.
+`GET http://127.0.0.1:8000/health/database` should answer `{"ok": true, …}`.
 
 ## Real sites
 
@@ -48,7 +49,8 @@ known image and two known scam texts). Run it with
 `tests/universal_e2e_server.py` itself). The pages are in
 `trustgraph_extension/test/fixtures/universal/`, served from a real HTTP server that sends no
 CORS headers, on separate origins (`news.test`, `cdn.other.test`, `embed.other.test`,
-`social.test`, `video.test`). 41/41 checks passed on 2026-10-06.
+`social.test`, `video.test`), against the FastAPI app and PostgreSQL 16. 43/43 checks passed on
+2026-10-06 (including the shield's own check matching a re-typed reported scam via `/api/detect`).
 
 A screenshot-captured seeded image coming back as `db_match: true` proves the crop landed
 on the element: a misaligned crop does not match.
@@ -72,7 +74,8 @@ on the element: a misaligned crop does not match.
 | SPA navigation (pushState, new post) | Pass | Pass | Pass (downloaded) | Pass (no match, as expected) | Pass | Pass | Pass |
 | Video player with overlay + control bar (YouTube) | Pass | Pass | Pass (screenshot) | Pass (db_match) | Pass (player's own button works) | Pass | n/a |
 | WhatsApp Web fixture (site adapter active) | Pass (no universal text shields; chat shield unchanged) | n/a | n/a | n/a | Pass | Pass | n/a |
-| Extension → backend → database round trip | n/a | n/a | n/a | Pass (`Universal.health()`) | n/a | n/a | n/a |
+| Extension → backend → database round trip | n/a | n/a | n/a | Pass (`Universal.health()`, PostgreSQL) | n/a | n/a | n/a |
+| Shield check vs reported scams (`/api/detect`) | n/a | n/a | n/a | Pass (re-typed scam matched; ordinary message: no match) | n/a | n/a | n/a |
 
 ## Known limits
 
