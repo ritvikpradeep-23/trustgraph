@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TrustGraph",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Check a message you choose for scam signals. Only the verdict comes home: message text is never stored. It warns, never blocks.",
   "minimum_chrome_version": "110",
   "icons": {

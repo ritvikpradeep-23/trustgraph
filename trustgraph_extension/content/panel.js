@@ -339,7 +339,44 @@
   //   on: {retry, scanEarlier, jump(id), close, toggleSave(on), markWrong, openWorkspace}
   // }
   // -------------------------------------------------------------------------
+  // ---- Always an answer -----------------------------------------------------
+  // The panel never ends on an error or hangs on "Checking…": if a check
+  // fails, or hasn't finished after WATCHDOG_MS, it shows a default Low risk
+  // result, clearly labelled as a default (the check didn't finish), so the
+  // flow always completes. Real verdicts replace it whenever they arrive.
+  const WATCHDOG_MS = { single: 8000, chat: 15000 };
+  const DEFAULT_NOTICE = "Default result: the check didn't finish, so TrustGraph shows Low risk. If you're unsure about this message, check with the sender another way.";
+  let watchdog = 0;
+  function defaultVerdict() {
+    return {
+      id: "default-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      riskLevel: "low",
+      score: 10,
+      explanation: "No scam signs were found in the time available. This is a default result, not a full check.",
+      signals: [],
+      continuity: { state: "single", text: "Not analysed (default result)." },
+      similarity: { score: 0, text: "Not analysed (default result)." },
+      engine: "local",
+      source: "basic",
+      offline: true,
+      isDefault: true,
+      details: { score01: 0.1, contributions: [], weakSignals: [] },
+    };
+  }
+  function asDefault(s) {
+    const { retry } = (s && s.on) || {};
+    return { mode: (s && s.mode) || "single", status: "result", verdict: defaultVerdict(), coverage: (s && s.coverage) || { read: 1, label: "" }, notice: DEFAULT_NOTICE, on: { retry, close: s && s.on && s.on.close } };
+  }
+
   function render(next) {
+    clearTimeout(watchdog);
+    if (next.status === "error") next = asDefault(next);
+    if (next.status === "scanning") {
+      const pending = next;
+      watchdog = setTimeout(() => {
+        if (state === pending && isOpen) render(asDefault(pending));
+      }, WATCHDOG_MS[next.mode] || WATCHDOG_MS.single);
+    }
     ensurePanel();
     state = next;
     const activeKey = root.activeElement && root.activeElement.dataset ? root.activeElement.dataset.key : null;
@@ -531,7 +568,8 @@
       }
       if (acts.childNodes.length) nodes.push(acts);
     }
-    nodes.push(el("p", { class: "micro", text: "No message text stored · Results only" }));
+    const version = window.chrome && chrome.runtime && chrome.runtime.getManifest ? " · v" + chrome.runtime.getManifest().version : "";
+    nodes.push(el("p", { class: "micro", text: "No message text stored · Results only" + version }));
     return nodes;
   }
 
