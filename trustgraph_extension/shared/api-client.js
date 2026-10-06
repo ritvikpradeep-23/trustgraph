@@ -27,14 +27,14 @@
   function HttpApi({ webappUrl, token, fetchImpl, timeout }) {
     const base = String(webappUrl).replace(/\/+$/, "");
     const doFetch = fetchImpl || root.fetch.bind(root);
-    async function call(method, path, body) {
+    async function call(method, path, body, ms) {
       let res;
       try {
         res = await doFetch(base + path, {
           method,
           headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: "Bearer " + token } : {}) },
           body: body ? JSON.stringify(body) : undefined,
-          signal: AbortSignal.timeout(timeout || TG.TIMEOUT_SMALL_MS),
+          signal: AbortSignal.timeout(ms || timeout || TG.TIMEOUT_SMALL_MS),
         });
       } catch (err) {
         throw new ApiError("offline", 0);
@@ -84,7 +84,7 @@
         await call("POST", TG.WEBAPP.feedback, { resultId: String(id) });
       },
       async pair(code) {
-        const data = await call("POST", TG.WEBAPP.pair, { code: String(code).trim() });
+        const data = await call("POST", TG.WEBAPP.pair, { code: String(code).trim() }, TG.TIMEOUT_PAIR_MS);
         if (!data || typeof data.token !== "string") throw new ApiError("That code didn't work. Get a new one and try again.");
         return { token: data.token, name: String((data.account && data.account.name) || "Your account").slice(0, 80) };
       },

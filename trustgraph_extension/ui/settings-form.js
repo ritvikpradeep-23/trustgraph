@@ -130,8 +130,11 @@
         const code = el("input", { class: "tg-input", id: "set-pair", placeholder: "ABCD-1234", autocomplete: "off", spellcheck: "false", "aria-describedby": "set-pair-msg", style: "text-transform:uppercase;max-width:150px" });
         const msg = el("p", { class: "set-msg", id: "set-pair-msg", role: "status", "aria-live": "polite" });
         const connect = async () => {
+          msg.classList.remove("error");
           msg.textContent = "Connecting…";
-          const res = await send({ type: TG.MSG.PAIR, code: code.value });
+          const noAnswer = "No answer from TrustGraph. Reload it in chrome://extensions and try again.";
+          const res = await Promise.race([send({ type: TG.MSG.PAIR, code: code.value }), new Promise((r) => setTimeout(() => r(null), TG.UI_WAIT_MS))])
+            .then((r) => r || { ok: false, error: noAnswer }, () => ({ ok: false, error: noAnswer }));
           if (res.ok) {
             await refresh();
             opts.onAccountChange && opts.onAccountChange();

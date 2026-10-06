@@ -457,7 +457,7 @@ async function pair(code) {
     await sendHeartbeat("extension");
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: err instanceof Api.ApiError && err.status === 0 ? "Couldn't reach the web app. Check the address in Settings." : err.message };
+    return { ok: false, error: err instanceof Api.ApiError && err.status === 0 ? "Couldn't reach the TrustGraph server. Check that the server URL in Settings is right, then try again." : err.message };
   }
 }
 

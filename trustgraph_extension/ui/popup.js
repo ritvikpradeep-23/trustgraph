@@ -8,6 +8,12 @@
   const { el } = U;
   const V = TrustGraphVerdict;
   const send = (msg) => chrome.runtime.sendMessage(msg);
+  // Pairing always ends with an answer, even if the background never replies.
+  const pairWithin = (code) =>
+    Promise.race([
+      send({ type: TG.MSG.PAIR, code }),
+      new Promise((r) => setTimeout(() => r({ ok: false, error: "No answer from TrustGraph. Reload it in chrome://extensions and try again." }), TG.UI_WAIT_MS)),
+    ]).then((res) => res || { ok: false, error: "No answer from TrustGraph. Reload it in chrome://extensions and try again." }, (err) => ({ ok: false, error: "TrustGraph didn't answer (" + ((err && err.message) || err) + "). Reload it in chrome://extensions and try again." }));
 
   TrustGraphDesign.adopt(document, TrustGraphSettingsForm.CSS);
 
@@ -99,7 +105,7 @@
     const connect = async () => {
       msg.classList.remove("error");
       msg.textContent = "Connecting…";
-      const res = await send({ type: TG.MSG.PAIR, code: code.value });
+      const res = await pairWithin(code.value);
       if (res.ok) return load();
       msg.textContent = res.error;
       msg.classList.add("error");

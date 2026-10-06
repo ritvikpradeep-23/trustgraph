@@ -335,7 +335,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.8.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.2.9.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,

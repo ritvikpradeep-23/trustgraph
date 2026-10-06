@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.2.8";
+  TG.VERSION = "0.2.9";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -66,6 +66,8 @@
   TG.SCORE_DEADLINE_MS = 11000;
   TG.PAGE_WAIT_MS = 14000;
   TG.TIMEOUT_SMALL_MS = 2000; // pings, settings, heartbeat, web app calls
+  TG.TIMEOUT_PAIR_MS = 12000; // pairing: an idle server may first need to wake up
+  TG.UI_WAIT_MS = 20000; // extension pages: longest wait for the background before saying so
   TG.SERVER_SETTINGS_MAX_AGE_MS = 60 * 1000;
   TG.HEARTBEAT_MS = 15 * 1000;
   TG.MAX_TEXT = 4000; // characters sent for one check
