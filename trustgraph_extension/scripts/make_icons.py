@@ -1,4 +1,7 @@
-"""Draws TrustGraph's icons and the Web Store promo tile. Dev-only.
+"""Draws the Web Store promo tile. Dev-only.
+
+The toolbar icons (icons/icon-*.png) are the website's logo, rendered from
+icons/icon.svg by scripts/render_icons.js; this script no longer writes them.
 
     pip install pillow
     python3 trustgraph_extension/scripts/make_icons.py
@@ -124,9 +127,7 @@ def make_promo():
 def main():
     icons = ROOT / "icons"
     icons.mkdir(exist_ok=True)
-    for size in (16, 32, 48, 128):
-        make_icon(size).save(icons / f"icon-{size}.png")
-        print(f"wrote icons/icon-{size}.png")
+    # Toolbar icons: node trustgraph_extension/scripts/render_icons.js
     assets = ROOT / "store" / "assets"
     assets.mkdir(parents=True, exist_ok=True)
     make_promo().save(assets / "promo-440x280.png")
