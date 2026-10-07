@@ -1,16 +1,15 @@
-// Universal click-to-check, end to end: the real extension in Chromium, the
-// real backend (tests/universal_e2e_server.py: app.main against the
-// PostgreSQL database in DATABASE_URL, seeded with a known image and two
-// reported scam messages) and local pages that
-// reproduce what real sites do (cross-origin images without CORS, CSS
-// backgrounds, canvas, video, iframes, open shadow DOM, lazy/infinite
-// content, overlays over photos and players, SPA navigation).
+// Universal click-to-check (text only), end to end: the real extension in
+// Chromium, the real backend (tests/universal_e2e_server.py: app.main against
+// the PostgreSQL database in DATABASE_URL, seeded with two reported scam
+// messages) and local pages that reproduce what real sites do (images,
+// canvas, video, iframes, open shadow DOM, overlays over photos and players,
+// SPA navigation).
 //
 //   DATABASE_URL=postgresql+psycopg://...(a throwaway database) \
 //   NODE_PATH=<folder with playwright> node trustgraph_extension/test/universal-e2e.js
 //
-// A seeded image that comes back as db_match=true after a SCREENSHOT crop
-// proves the crop landed on the element (a misaligned crop would not match).
+// Text gets a shield and a verdict; images and videos must get NO shield, and
+// nothing is ever sent to the server's media check.
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -131,10 +130,10 @@ function startSites() {
     await sleep(400);
     return { box, shown: t.logs.slice(before).filter((l) => l.includes("shield on")) };
   }
-  // Click where the shield sits (media: top-left, text: top-right), wait for the result.
-  async function clickShield(t, box, kind, wait = 9000) {
+  // Click where the shield sits (top-right of the text), wait for the result.
+  async function clickShield(t, box, wait = 9000) {
     const before = t.logs.length;
-    const x = kind === "text" ? box.x + box.width - 6 - 15 : box.x + 6 + 15;
+    const x = box.x + box.width - 6 - 15;
     await t.page.mouse.move(x, box.y + 6 + 15, { steps: 3 });
     await t.page.mouse.click(x, box.y + 6 + 15);
     for (let i = 0; i < wait / 250; i++) {
@@ -144,14 +143,11 @@ function startSites() {
     }
     return null;
   }
-  async function checkMedia(t, selector, kind, expect, frameSel) {
+  // Images and videos are never checked: hovering one shows no shield.
+  async function noMediaShield(t, selector, frameSel) {
     const frame = frameSel ? t.page.frameLocator(frameSel) : null;
     const h = await hover(t, selector, frame);
-    const shown = h.shown.some((l) => l.includes(`shield on ${kind}`));
-    check(shown, `${t.name}: shield on ${selector} (${kind})`, h.shown.slice(-1));
-    if (!shown) return;
-    const res = await clickShield(t, h.box, kind, kind === "video" ? 20000 : 9000);
-    check(!!res && res.includes(`capture=${expect.capture}`) && res.includes(`db_match=${expect.db}`), `${t.name}: ${selector} -> capture ${expect.capture}, db_match ${expect.db}`, res);
+    check(!h.shown.some((l) => /shield on (image|video)/.test(l)), `${t.name}: no shield on ${selector} (images and videos aren't checked)`, h.shown.slice(-1));
   }
 
   // --- 1. news article ------------------------------------------------------
@@ -161,25 +157,13 @@ function startSites() {
   const layoutBefore = await a.page.evaluate(() => [document.documentElement.scrollHeight, document.getElementById("para").getBoundingClientRect().top]);
   let h = await hover(a, "#para");
   check(h.shown.some((l) => l.includes("shield on text")), "article: shield on a paragraph", h.shown);
-  let r = await clickShield(a, h.box, "text");
+  let r = await clickShield(a, h.box);
   check(!!r && r.includes("db_match=false"), "article: ordinary paragraph -> result, no database match", r);
   h = await hover(a, "#scam");
-  r = await clickShield(a, h.box, "text");
+  r = await clickShield(a, h.box);
   check(!!r && r.includes("db_match=true") && !r.includes("model=low"), "article: known scam text -> flagged and matched in the database", r);
-  await checkMedia(a, "#same", "image", { capture: "direct", db: true });
-  await checkMedia(a, "#cross", "image", { capture: "fetch", db: false });
-  await checkMedia(a, "#bg", "image", { capture: "fetch", db: true });
-  h = await hover(a, "#tiny");
-  check(!h.shown.some((l) => l.includes("shield on image")), "article: no shield on a 60px thumbnail", h.shown);
-  await checkMedia(a, "#canvas", "image", { capture: "direct", db: true });
-  await checkMedia(a, "#video", "video", { capture: "direct", db: true });
-  await checkMedia(a, "#xvideo", "video", { capture: "screenshot", db: true });
-  await checkMedia(a, "#framed", "image", { capture: "fetch", db: true }, "#frame");
-  await checkMedia(a, "#tainted", "image", { capture: "screenshot", db: true }, "#frame");
-  await checkMedia(a, "#in-shadow", "image", { capture: "direct", db: true });
-  await a.page.evaluate(() => document.getElementById("feed").scrollIntoView());
-  await sleep(600);
-  await checkMedia(a, "#lazy", "image", { capture: "direct", db: true });
+  for (const sel of ["#same", "#cross", "#bg", "#canvas", "#video", "#xvideo", "#in-shadow"]) await noMediaShield(a, sel);
+  await noMediaShield(a, "#framed", "#frame");
   await a.page.evaluate(() => scrollTo(0, 0));
   await sleep(300);
   const layoutAfter = await a.page.evaluate(() => [document.documentElement.scrollHeight, document.getElementById("para").getBoundingClientRect().top]);
@@ -194,18 +178,18 @@ function startSites() {
   console.log("social feed (http://social.test/)");
   const f = await open("http://social.test/");
   f.name = "feed";
-  await checkMedia(f, "#photo", "image", { capture: "fetch", db: true });
+  await noMediaShield(f, "#photo");
   await f.page.click("#next");
   await sleep(800);
   check(f.page.url().endsWith("/feed/next"), "feed: in-app navigation happened");
-  await checkMedia(f, "#photo2", "image", { capture: "fetch", db: false });
+  await noMediaShield(f, "#photo2");
   check(f.errors.length === 0, "feed: no console errors", f.errors);
 
   // --- 3. video player: overlay + controls ----------------------------------
   console.log("video player (http://video.test/)");
   const v = await open("http://video.test/");
   v.name = "player";
-  await checkMedia(v, "#v", "video", { capture: "screenshot", db: true });
+  await noMediaShield(v, "#v");
   await v.page.click("#pp");
   await sleep(300);
   check((await v.page.textContent("#clicks")) === "1" && (await v.page.evaluate(() => document.getElementById("v").paused)), "player: its own pause button still works");
@@ -232,7 +216,7 @@ function startSites() {
   const calm = await sw.evaluate((t) => scoreMessage(t, "whatsapp"), "Are we still on for lunch on Sunday at the usual place near the station?");
   check(calm.database && calm.database.checked && calm.database.matches === 0 && calm.riskLevel === "low" && !calm.serverError, "shield check: an ordinary message is checked against the database, no match", { level: calm.riskLevel, db: calm.database });
 
-  console.log("\nserver saw:\n " + media().slice(-14).join("\n "));
+  check(media().length === 0, "server: no image or video was sent to /api/media/check", media().slice(-3));
   await ctx.close();
   server.proc.kill();
   sites.close();

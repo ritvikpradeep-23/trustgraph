@@ -288,10 +288,11 @@
   }
   Panel.layoutForPage = () => (adapter && active ? layoutOpts() : {});
 
-  // The launcher shows while a supported chat page is active and the panel
-  // is closed.
+  // The floating "Scan this chat" launcher is off (TG.SHOW_LAUNCHER): checks
+  // start from the hover shield on one message or from a text selection.
+  // When on, it shows while a supported chat page is active and the panel is closed.
   function updateLauncher() {
-    if (active && adapter.read && !Panel.isOpen() && (!adapter.hasChat || safe(() => adapter.hasChat(), true))) {
+    if (TG.SHOW_LAUNCHER && active && adapter.read && !Panel.isOpen() && (!adapter.hasChat || safe(() => adapter.hasChat(), true))) {
       Panel.launcher.show({
         channel: adapter.channel,
         avoid: adapter.chatHeader ? () => safe(() => adapter.chatHeader(), null) : null,

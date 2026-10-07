@@ -157,40 +157,26 @@ should. This prints message text to the console, so turn it off again with
 
 ## Click-to-check on any website (`content/universal.js`)
 
-One shield on checkable content on **every** site and in every frame, with
-no site selectors: images, videos, canvases and CSS background images (at
-least 120×120 px), and text blocks (40+ characters) where no site adapter
-already handles the page. WhatsApp, Gmail and the other adapters keep their
-own text shields exactly as before. Switch the whole path off with
-`TG.UNIVERSAL_CHECK = false` in `shared/constants.js` (sizes, frame count and
-timings are in `TG.UNIVERSAL` next to it).
+One shield on a block of text (40+ characters) on **every** site and in
+every frame, with no site selectors, where no site adapter already handles
+the page. WhatsApp, Gmail and the other adapters keep their own text shields
+exactly as before. Switch the whole path off with `TG.UNIVERSAL_CHECK = false`
+in `shared/constants.js` (the minimum length is in `TG.UNIVERSAL` next to it).
 
-- **Capture:** pixels are read directly when the page allows it (canvas or
-  fetch). When it doesn't (cross-origin images without CORS, `blob:` or
-  protected video), the background takes a screenshot of the tab and crops it
-  to the element (`background-universal.js`, `chrome.tabs.captureVisibleTab`).
-  Video: 8 frames over 4 seconds while it plays, with their timestamps.
+- **Text only:** images and videos are never read, downloaded, captured or
+  sent. (The earlier image/video check was removed in v0.3.1.)
 - **Server:** text goes through the same check as a shield (`/api/detect`,
-  reported-scam matching). Images and frames go to `POST /api/media/check`
-  as `{type, payload, hostname, timestamp, capture}` and come back with
-  `fingerprint: {db_match, similarity, matched_record_id}` from the
-  known-fakes table, and `deepfake` (says "not connected" until a model is
-  connected; no score is made up). Images and video need the server; with
-  Settings → Engine on "on-device only", nothing is sent.
-- **Database (PostgreSQL):** `python scripts/seed_fingerprints.py --demo`
-  adds two reported scam messages and one demo image; add your own in
-  `data/known_fakes/manifest.json`. `GET /health/database` proves the
-  backend → PostgreSQL round trip, and the background's `Universal.health()`
-  proves extension → backend → database.
+  reported-scam matching). With Settings → Engine on "on-device only", only
+  the on-device rules run.
+- **Database (PostgreSQL):** `GET /health/database` proves the backend →
+  PostgreSQL round trip, and the background's `Universal.health()` proves
+  extension → backend → database.
 - **Debug:** `localStorage.setItem("trustgraph-debug-scan", "1")` in a page's
   console logs what got a shield and each result's summary.
 - **Test:** `python tests/universal_e2e_server.py` is started by
   `node test/universal-e2e.js` (needs Playwright, and `DATABASE_URL` pointing
   at a throwaway PostgreSQL database). The per-site checklist is
   `docs/site-compat-checklist.md` in the repository root.
-- **Privacy:** screenshots can contain private conversations, so they go only
-  to the backend URL in Settings, are decoded in memory there, and are never
-  stored. Only fingerprints of known fakes you seed are kept.
 
 ## Where to look when something breaks
 
@@ -321,7 +307,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 | 7 | **Delete all history** | Confirmation dialog, focus on Cancel; after Delete all, the empty state |
 | 8 | Test chat (`test/test-chat.html`): hover the gift-card bubble, click the shield | Pulsing ring, then the panel; the page narrows instead of being covered |
 | 9 | In the panel: switch **Save to history** off | The result disappears from History; Open in workspace greys out |
-| 10 | Click the round button (launcher) | Chat verdict "Across the N messages…", signals with "Jump to message", Continuity and similarity |
+| 10 | (Only with `TG.SHOW_LAUNCHER = true`) Click the round button (launcher) | Chat verdict "Across the N messages…", signals with "Jump to message", Continuity and similarity |
 | 11 | Select text on any site → right-click **Check with TrustGraph** | Panel overlays the page |
 | 12 | Popup → **Sign in** → demo web app → **Connect this browser** | Status chip "Signed in"; new checks appear in the demo web app |
 | 13 | `mock_server.py` (then `--new-shape`, then `--fail`) and check again | "TrustGraph server + on-device rules"; with --fail, "Server error · on-device rules only" |
@@ -335,7 +321,7 @@ Run in a **fresh Chrome profile** (chrome://settings/manageProfile → Add).
 ```bash
 pip install pillow                       # only needed to redraw icons
 python3 trustgraph_extension/scripts/make_icons.py  # icons/*.png + store/assets/promo-440x280.png
-python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.3.0.zip
+python3 trustgraph_extension/scripts/build_zip.py   # -> dist/trustgraph-0.3.2.zip
 ```
 
 `build_zip.py` strips the dev-only test-page entry and leaves out `test/`,

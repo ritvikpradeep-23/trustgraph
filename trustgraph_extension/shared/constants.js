@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.3.0";
+  TG.VERSION = "0.3.2";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -37,7 +37,6 @@
   // TrustGraph API paths (on backend_url; the FastAPI app in app/main.py).
   TG.ENDPOINTS = {
     score: "/api/detect", // POST {text, channel} -> risk + previous_report_matches (reported-scam pattern matching)
-    media: "/api/media/check", // POST {type, payload, hostname, timestamp, capture} -> known-fakes fingerprint match
     dbHealth: "/health/database", // GET: backend -> PostgreSQL round trip
     settings: "/api/settings", // GET  (optional)
     status: "/api/status", // POST {source, ts} heartbeat (optional)
@@ -81,6 +80,11 @@
   // the panel all read this one value; High stays at 70.
   TG.FLAG_THRESHOLD = 35;
 
+  // The floating round "Scan this chat" button on chat sites. Off: checks
+  // start from the hover shield on one message, or a text selection
+  // (right-click "Check with TrustGraph" / the popup's button).
+  TG.SHOW_LAUNCHER = false;
+
   // Chat scans on sites whose adapter sets `scanFilters` (WhatsApp): what
   // never reaches the model. A message is long enough with at least
   // SCAN_MIN_CHARS characters OR SCAN_MIN_WORDS words; only-emoji,
@@ -113,19 +117,13 @@
     other: "Other sites",
   };
 
-  // Click-to-check on ANY website (content/universal.js): images, video,
-  // canvas, CSS background images and text blocks, found without site
-  // selectors. This ONE switch turns the whole new path off (false); the
-  // site adapters, panel and scoring are not affected either way.
+  // Click-to-check on ANY website (content/universal.js): text blocks,
+  // found without site selectors. Images and videos are never read. This ONE
+  // switch turns the whole path off (false); the site adapters, panel and
+  // scoring are not affected either way.
   TG.UNIVERSAL_CHECK = true;
   TG.UNIVERSAL = {
-    minMedia: 120, // px: images/videos/canvases smaller than this (either side) get no shield
     minText: 40, // characters: shorter text blocks get no shield
-    videoFrames: 8, // frames sampled from a video...
-    videoSeconds: 4, // ...over this many seconds (while it plays; it is never seeked)
-    maxSide: 640, // px: captured images are scaled down to this before sending
-    jpegQuality: 0.85,
-    timeoutMs: 30000, // the server may take a while to score frames on a CPU
   };
 
   TG.SIGNAL_NAMES = ["continuity", "similarity", "precedent", "anomaly"]; // the Python server's four
@@ -161,10 +159,8 @@
     SELF_TEST: "selfTest",
     CAPTURE_SAMPLE: "captureSample", // Debug mode: anonymised HTML of the chat area, for calibrating an adapter
     // universal click-to-check (content/universal.js <-> background-universal.js)
-    UNIVERSAL_CHECK: "universalCheck", // {kind: "text"|"image"|"video", text | payload, capture}
-    UNIVERSAL_FETCH: "universalFetch", // {url}: an image downloaded by the background (no page CORS)
-    UNIVERSAL_CAPTURE: "universalCapture", // {rect, viewportWidth, dpr}: screenshot crop of the visible tab
-    UNIVERSAL_CARD: "universalCard", // a frame's result card, shown by the top frame ({desc} | {hide})
+    UNIVERSAL_CHECK: "universalCheck", // {kind: "text", text}
+    UNIVERSAL_CARD: "universalCard", // a frame's result card, shown by the top frame ({desc})
     UNIVERSAL_HEALTH: "universalHealth", // extension -> backend -> database round trip
   };
 

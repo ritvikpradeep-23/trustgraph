@@ -704,10 +704,6 @@ async function handleMessage(msg, sender) {
       return getStatus();
     case TG.MSG.UNIVERSAL_CHECK:
       return Universal.check(msg, sender);
-    case TG.MSG.UNIVERSAL_FETCH:
-      return Universal.fetchImage(msg);
-    case TG.MSG.UNIVERSAL_CAPTURE:
-      return Universal.capture(msg, sender);
     case TG.MSG.UNIVERSAL_CARD:
       return Universal.showCard(msg, sender);
     case TG.MSG.UNIVERSAL_HEALTH:
