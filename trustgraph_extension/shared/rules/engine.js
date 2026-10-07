@@ -25,19 +25,21 @@
 //        first message from them here  raises: 1 - (1 - score) * 0.95
 //        saved contact, 5+ earlier msgs lowers: score * 0.8
 //   5. Cap: with at most ONE real scam sign (one phrase of one rule) and no
-//      combination, the score stays below High (max 0.69). One keyword can
+//      combination, the score stays below High (max 0.64). One keyword can
 //      never produce High; a rule matched by two different phrases counts
 //      as two signs.
-//   6. Bands: High >= 0.70, Caution >= 0.35, else Low.
+//   6. Bands: High >= 0.65, Caution >= 0.25, else Low (TG.HIGH_THRESHOLD / TG.FLAG_THRESHOLD).
 (function (root) {
   "use strict";
   const N = root.TrustGraphNormalize || require("./normalize.js");
   const R = root.TrustGraphRules || require("./rules.js");
 
-  const HIGH = 0.7;
-  const CAUTION = ((root.TG && root.TG.FLAG_THRESHOLD) || 35) / 100; // TG.FLAG_THRESHOLD (shared/constants.js)
-  const SINGLE_CAP = 0.69;
-  const RANK = { Low: 0, Caution: 1, High: 2 };
+  const HIGH = ((root.TG && root.TG.HIGH_THRESHOLD) || 65) / 100; // TG.HIGH_THRESHOLD (shared/constants.js)
+  const CAUTION = ((root.TG && root.TG.FLAG_THRESHOLD) || 25) / 100; // TG.FLAG_THRESHOLD (shared/constants.js)
+  const SINGLE_CAP = HIGH - 0.01; // one sign alone stays just below High
+  // One mild sign alone ("don't tell anyone", "update your payment") is not
+  // a warning: below this it stays Low, shown just under Caution.
+  const MILD_ALONE = 0.35;  const RANK = { Low: 0, Caution: 1, High: 2 };
   const SIGNALS = ["continuity", "similarity", "precedent", "anomaly"];
   const AMOUNT = /(?:₹|\brs\.? ?|\binr ?|rupees? ?|രൂപ|रुपये)\s?\d|\d[\d,]* ?(?:rs|rupees|lakh|crore)\b/u;
   const MONEY_RULES = ["money_request", "upi_collect", "upfront_fee", "prize", "investment", "job_offer", "gift_card"];
@@ -271,6 +273,10 @@
     if (capped) {
       score = SINGLE_CAP;
       contributions.push({ label: "Only one scam sign, so it can't reach High on its own", effect: "caps" });
+    }
+    if (signs <= 1 && !combos.length && score >= CAUTION && score < MILD_ALONE) {
+      score = CAUTION - 0.01;
+      contributions.push({ label: "Only one mild sign, so it stays Low on its own", effect: "caps" });
     }
     score = round(Math.min(1, score));
     const band = bandOf(score);

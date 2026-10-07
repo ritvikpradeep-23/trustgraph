@@ -87,10 +87,12 @@
   // Server signal names (the Python server's four) -> signal types.
   const SERVER_SIGNAL = { continuity: "continuity_break", anomaly: "continuity_break", similarity: "pattern_similarity", precedent: "pattern_similarity" };
 
-  // Sensitivity moves the thresholds; Balanced is the spec's (35 / 70).
-  // Balanced's Caution is TG.FLAG_THRESHOLD (shared/constants.js).
-  const FLAG = (root.TG && root.TG.FLAG_THRESHOLD) || 35;
-  const THRESHOLDS = { relaxed: { caution: FLAG + 10, high: 80 }, balanced: { caution: FLAG, high: 70 }, strict: { caution: FLAG - 10, high: 60 } };
+  // The level always follows the score shown: Balanced uses
+  // TG.FLAG_THRESHOLD / TG.HIGH_THRESHOLD (shared/constants.js); Relaxed and
+  // Strict move both by 10.
+  const FLAG = (root.TG && root.TG.FLAG_THRESHOLD) || 25;
+  const HIGH = (root.TG && root.TG.HIGH_THRESHOLD) || 65;
+  const THRESHOLDS = { relaxed: { caution: FLAG + 10, high: HIGH + 10 }, balanced: { caution: FLAG, high: HIGH }, strict: { caution: FLAG - 10, high: HIGH - 10 } };
   const LEVEL_RANK = { low: 0, caution: 1, high: 2 };
   const SEV_RANK = { low: 0, medium: 1, high: 2 };
 
@@ -147,9 +149,9 @@
   function fromEngine(result, opts = {}) {
     const score = Math.round((result.score || 0) * 100);
     const sensitivity = opts.sensitivity || "balanced";
-    // Balanced keeps the engine's own band (it also knows the one-sign cap
-    // and a server's raised verdict); other sensitivities re-threshold.
-    let riskLevel = sensitivity === "balanced" || ["records", "model"].includes(result.decisionSource) ? String(result.band || "Low").toLowerCase() : levelFor(score, sensitivity);
+    // The level follows the score shown (the engine already capped a single
+    // sign below High), whoever produced it.
+    let riskLevel = levelFor(score, sensitivity);
     if (!(riskLevel in LEVEL_RANK)) riskLevel = "caution";
     const hits = result.hits || result.flags || [];
     // combine() adds a "server" flag (not a hit) when the server raised the verdict.
@@ -187,7 +189,7 @@
   // (each keeps the message its evidence came from, for "Jump to message").
   function aggregate(items, results, opts = {}) {
     const sensitivity = opts.sensitivity || "balanced";
-    const levelOf = (r) => (sensitivity === "balanced" ? String(r.band || "Low").toLowerCase() : levelFor(Math.round((r.score || 0) * 100), sensitivity));
+    const levelOf = (r) => levelFor(Math.round((r.score || 0) * 100), sensitivity);
     const scored = items.filter((it) => results[it.id]);
     let top = null;
     let level = "low";

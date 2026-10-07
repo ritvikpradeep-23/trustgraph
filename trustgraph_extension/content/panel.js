@@ -535,7 +535,7 @@
   function whyBlock(s) {
     const v = s.verdict;
     const d = v.details || {};
-    const items = [`Risk score ${v.score} out of 100 (Caution from ${TG.FLAG_THRESHOLD}, High from 70 at Balanced sensitivity).`];
+    const items = [`Risk score ${v.score} out of 100 (Caution from ${TG.FLAG_THRESHOLD}, High from ${TG.HIGH_THRESHOLD} at Balanced sensitivity).`];
     for (const c of d.contributions || []) items.push(c.effect ? `${c.label}: ${c.effect} the score` : `${c.label}: +${Math.round(c.weight * 100)}`);
     if ((d.weakSignals || []).length) items.push(`Weak signs (context only): ${d.weakSignals.join(", ").toLowerCase()}.`);
     const how =

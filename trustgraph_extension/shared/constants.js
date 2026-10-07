@@ -11,7 +11,7 @@
 
   const TG = root.TG || {};
 
-  TG.VERSION = "0.3.2";
+  TG.VERSION = "0.3.3";
 
   // Settings the user can change. Only keys the user has actually changed are
   // saved in chrome.storage.local; everything else falls back to these.
@@ -75,15 +75,21 @@
   TG.SERVER_CONCURRENCY = 4; // parallel /api/detect calls during a chat scan
   TG.MAX_SCAN_MESSAGES = 40; // most recent incoming messages scored per scan
 
-  // Risk score (0-100) from which a message is flagged (Caution) at the
-  // default Balanced sensitivity. The rules engine, the verdict bands and
-  // the panel all read this one value; High stays at 70.
-  TG.FLAG_THRESHOLD = 35;
+  // Risk levels from the 0-100 score, at the default Balanced sensitivity:
+  // High from TG.HIGH_THRESHOLD, Caution from TG.FLAG_THRESHOLD, Low below.
+  // The rules engine, the verdict, the panel and Settings all read these
+  // (the server uses the same cut points: backend/app/core/risk_bands.py).
+  // Relaxed moves both up by 10, Strict down by 10.
+  TG.HIGH_THRESHOLD = 65;
+  TG.FLAG_THRESHOLD = 25;
 
   // The floating round "Scan this chat" button on chat sites. Off: checks
   // start from the hover shield on one message, or a text selection
   // (right-click "Check with TrustGraph" / the popup's button).
   TG.SHOW_LAUNCHER = false;
+  // The floating shield that appears next to a hovered message. Off: select
+  // the text and right-click "Check with TrustGraph" (or use the popup).
+  TG.HOVER_SHIELD = false;
 
   // Chat scans on sites whose adapter sets `scanFilters` (WhatsApp): what
   // never reaches the model. A message is long enough with at least
@@ -121,7 +127,7 @@
   // found without site selectors. Images and videos are never read. This ONE
   // switch turns the whole path off (false); the site adapters, panel and
   // scoring are not affected either way.
-  TG.UNIVERSAL_CHECK = true;
+  TG.UNIVERSAL_CHECK = false; // off: no floating buttons; select text and right-click instead
   TG.UNIVERSAL = {
     minText: 40, // characters: shorter text blocks get no shield
   };

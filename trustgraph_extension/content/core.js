@@ -255,8 +255,12 @@
     return pane && pane !== document.body && pane !== document.documentElement ? pane : null;
   }
 
-  document.addEventListener("mouseover", onPointerOrFocus, true);
-  document.addEventListener("focusin", onPointerOrFocus, true); // keyboard users
+  // The hover shield is off (TG.HOVER_SHIELD): checks start from a text
+  // selection (right-click "Check with TrustGraph" / the popup's button).
+  if (TG.HOVER_SHIELD) {
+    document.addEventListener("mouseover", onPointerOrFocus, true);
+    document.addEventListener("focusin", onPointerOrFocus, true); // keyboard users
+  }
 
   // Keep the shield glued to its message while the page scrolls.
   let scrollFrame = false;

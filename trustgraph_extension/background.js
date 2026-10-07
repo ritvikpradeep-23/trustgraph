@@ -575,6 +575,21 @@ function createContextMenu() {
   });
 }
 
+// A selection check counts for the chat site it was made on.
+const SITE_CHANNELS = [
+  [/^web\.whatsapp\.com$/, "whatsapp"], [/^mail\.google\.com$/, "gmail"], [/(^|\.)messenger\.com$|^www\.facebook\.com$/, "messenger"],
+  [/^www\.instagram\.com$/, "instagram"], [/^www\.linkedin\.com$/, "linkedin"], [/^web\.telegram\.org$/, "telegram"],
+  [/(^|\.)discord\.com$/, "discord"], [/^app\.slack\.com$/, "slack"],
+];
+function channelForUrl(url) {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch (_) {}
+  const hit = SITE_CHANNELS.find(([re]) => re.test(host));
+  return hit ? hit[1] : "other";
+}
+
 async function checkInTab(tab, text, frameId) {
   if (!tab || tab.id === undefined || tab.id < 0) return { error: "This kind of tab can't be checked." };
   const target = { tabId: tab.id, frameIds: [0] }; // the panel always goes in the top frame
@@ -589,8 +604,9 @@ async function checkInTab(tab, text, frameId) {
   const { theme } = await readSettings();
   const send = (msg) => chrome.tabs.sendMessage(tab.id, { theme, ...msg }, { frameId: 0 }).catch(() => {});
   await send({ type: TG.MSG.SHOW_CHECKING, useSelection: !frameId });
-  const verdict = await scoreMessage(text, "other");
-  const saved = verdict.empty ? null : await handleVerdict(verdict, { channel: "other", url: tab.url, text });
+  const channel = channelForUrl(tab.url);
+  const verdict = await scoreMessage(text, channel);
+  const saved = verdict.empty ? null : await handleVerdict(verdict, { channel, url: tab.url, text });
   await send({ type: TG.MSG.SHOW_RESULT, verdict, record: saved && saved.record, saved: saved && saved.saved });
   return { ok: true };
 }

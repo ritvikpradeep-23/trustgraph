@@ -27,8 +27,8 @@ const check = (ok, name) => {
   const low = await V.LocalEngine.scoreMessage({ text: "See you at 6 for dinner?", channel: "whatsapp" });
   check(low.riskLevel === "low" && low.score < 35 && low.signals.length === 0, "ordinary message -> low, no signals");
   check((await V.LocalEngine.scoreMessage({ text: "   " })).empty === true, "empty text -> {empty}");
-  check(V.levelFor(34) === "low" && V.levelFor(35) === "caution" && V.levelFor(69) === "caution" && V.levelFor(70) === "high", "balanced thresholds 35 / 70");
-  check(V.levelFor(30, "strict") === "caution" && V.levelFor(40, "relaxed") === "low", "sensitivity moves the thresholds");
+  check(V.levelFor(24) === "low" && V.levelFor(25) === "caution" && V.levelFor(64) === "caution" && V.levelFor(65) === "high", "balanced thresholds 25 / 65");
+  check(V.levelFor(20, "strict") === "caution" && V.levelFor(30, "relaxed") === "low" && V.levelFor(70, "relaxed") === "caution" && V.levelFor(55, "strict") === "high", "sensitivity moves the thresholds");
   const strictV = await V.LocalEngine.scoreMessage({ text: "Install AnyDesk so I can help" }, { sensitivity: "strict" });
   check(strictV.riskLevel !== "low" ? strictV.signals.length > 0 : true, "a strict caution still names its signals");
 
@@ -50,16 +50,16 @@ const check = (ok, name) => {
     reasons: ["No qualifying record match; scam model used."], signals: {similarity: .88},
     previous_report_matches: [], decision_source: "model", model_used: true}};
   const ordered = await V.RemoteEngine("u", fake(sequential)).scoreMessage({text: "Buy gift cards and send me the codes urgently, do not tell anyone"}, {sensitivity: "strict"});
-  check(ordered.riskLevel === "caution" && ordered.score === 88 && ordered.source === "server", "records-first model result is final, even when local rules/sensitivity would rank higher");
+  check(ordered.riskLevel === "high" && ordered.score === 88 && ordered.source === "server", "records-first model result is final; its level follows its score (88 -> High)");
   check(/scam model used/.test(ordered.explanation), "ordered server explanation is preserved");
   const ESequential = require("../shared/rules/engine.js");
   const batchFinal = ESequential.combine(ESequential.analyze("Share the OTP now, urgent, account blocked"), V.normalizeRemote({...sequential.data, risk_level: "LOW", risk_score: .12}), "server");
   check(batchFinal.band === "Low" && batchFinal.score === .12 && batchFinal.hits.length === 0, "chat-batch merge also preserves the final ordered result without local override");
   // A server with its own cut-offs: level and number must still agree.
   const cal = await V.RemoteEngine("u", fake({ ok: true, status: 200, data: { band: "Caution", score: 0.89, explanation: "x", signals: [] } })).scoreMessage(text);
-  check(cal.riskLevel === "caution" && cal.score === 89, `server Caution preserves its calibrated score: ${cal.score}`);
+  check(cal.riskLevel === "high" && cal.score === 89, `the level follows the score shown, whatever the server called it: ${cal.score}`);
   const lowHigh = await V.RemoteEngine("u", fake({ ok: true, status: 200, data: { band: "High", score: 0.4, explanation: "x", signals: [] } })).scoreMessage(text);
-  check(lowHigh.riskLevel === "high" && lowHigh.score === 40, `server band and score are preserved without invented floors: ${lowHigh.score}`);
+  check(lowHigh.riskLevel === "caution" && lowHigh.score === 40, `score kept, no invented floor; 40 is Caution: ${lowHigh.score}`);
   check(V.normalizeRemote({ riskLevel: "weird", score: 3 }) === null && V.normalizeRemote({ nope: 1 }) === null, "unknown answers are rejected");
 
   // The TrustGraph API (/api/detect): a pending model is never a verdict;
@@ -73,7 +73,7 @@ const check = (ok, name) => {
   check(none.riskLevel === "low" && none.database && none.database.checked && none.database.matches === 0 && !none.serverError, "no match + pending model: on-device verdict, database checked, no error");
   const m = (sim) => [{ report_id: "rep_1", submission_id: "sub_1", report_type: "scam", status: "confirmed", similarity_score: sim }];
   const close = await V.RemoteEngine("u", fake(detect(m(0.8)))).scoreMessage({ text: calmText, channel: "whatsapp" });
-  check(close.riskLevel === "caution" && close.database.matches === 1 && /reported to TrustGraph/.test(close.similarity.text), `a 0.80 match raises an ordinary-looking message to Caution (${close.riskLevel} ${close.score})`);
+  check(close.riskLevel === "high" && close.database.matches === 1 && /reported to TrustGraph/.test(close.similarity.text), `a 0.80 match raises an ordinary-looking message to High (${close.riskLevel} ${close.score})`);
   const exact = await V.RemoteEngine("u", fake(detect(m(0.95)))).scoreMessage({ text: calmText, channel: "whatsapp" });
   check(exact.riskLevel === "high" && exact.similarity.score === 95, `a 0.95 match is High (${exact.riskLevel} ${exact.score})`);
   const model = V.normalizeRemote(detect([], { risk_level: "HIGH", risk_score: 0.9, reasons: ["model says so"] }).data);
